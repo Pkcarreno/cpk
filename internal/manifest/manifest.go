@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -25,6 +26,7 @@ var (
 	ErrMissingPackageManager = errors.New("the package.json file does not have a packageManager field")
 	ErrInvalidPackageSpec    = errors.New("the packageManager field is invalid")
 	ErrInvalidManifest       = errors.New("the package.json file has invalid syntax")
+	ErrPackageManagerExists  = errors.New("the package.json file already has a packageManager field")
 )
 
 func Read(manifestPath string) ([]byte, error) {
@@ -98,4 +100,63 @@ func UpdatePackageSpec(manifestBytes []byte, spec PackageSpec) ([]byte, error) {
 	}
 
 	return sjson.SetBytes(manifestBytes, "packageManager", spec.String())
+}
+
+func InsertPackageSpec(manifestBytes []byte, spec PackageSpec) ([]byte, error) {
+	if !json.Valid(manifestBytes) {
+		return nil, ErrInvalidManifest
+	}
+	if gjson.GetBytes(manifestBytes, "packageManager").Exists() {
+		return nil, ErrPackageManagerExists
+	}
+
+	closeBraceIndex := bytes.LastIndexByte(manifestBytes, '}')
+	if closeBraceIndex == -1 {
+		return nil, ErrInvalidManifest
+	}
+
+	trimmedPrefixBytes := bytes.TrimRight(manifestBytes[:closeBraceIndex], " \t\r\n")
+	hasKeys := len(trimmedPrefixBytes) > 0 && trimmedPrefixBytes[len(trimmedPrefixBytes)-1] != '{'
+
+	indent := detectIndentation(manifestBytes)
+	var buffer bytes.Buffer
+	buffer.Write(trimmedPrefixBytes)
+
+	if hasKeys {
+		buffer.WriteString(",")
+	}
+	if indent != "" {
+		buffer.WriteString("\n")
+		buffer.WriteString(indent)
+		buffer.WriteString(`"packageManager": "` + spec.String() + `"`)
+		buffer.WriteString("\n")
+	} else {
+		buffer.WriteString(`"packageManager":"` + spec.String() + `"`)
+	}
+
+	buffer.Write(manifestBytes[closeBraceIndex:])
+	return buffer.Bytes(), nil
+}
+
+func detectIndentation(manifestBytes []byte) string {
+	lines := bytes.Split(manifestBytes, []byte("\n"))
+	for _, line := range lines {
+		trimmed := bytes.TrimLeft(line, " \t")
+		if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("{")) || bytes.Equal(trimmed, []byte("}")) {
+			continue
+		}
+		indent := line[:len(line)-len(trimmed)]
+		if len(indent) > 0 {
+			if indent[0] == '\t' {
+				return "\t"
+			}
+			if len(indent) >= 4 && bytes.Equal(indent[:4], []byte("    ")) {
+				return "    "
+			}
+			if len(indent) >= 2 && bytes.Equal(indent[:2], []byte("  ")) {
+				return "  "
+			}
+		}
+	}
+	return ""
 }

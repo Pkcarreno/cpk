@@ -187,3 +187,72 @@ func TestUpdatePackageSpec(t *testing.T) {
 		}
 	})
 }
+
+func TestInsertPackageSpec(t *testing.T) {
+
+	testCases := []struct {
+		name    string
+		fixture string
+	}{
+		{name: "preserves 2 spaces indentation", fixture: "insert_2spaces"},
+		{name: "preserves 4 spaces indentation", fixture: "insert_4spaces"},
+		{name: "preserves tab indentation", fixture: "insert_tabs"},
+		{name: "preserves unformatted JSON", fixture: "insert_unformatted"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			inputBytes, err := os.ReadFile(filepath.Join("testdata", testCase.fixture+".json"))
+			if err != nil {
+				t.Fatalf("failed to read input test fixture: %v", err)
+			}
+
+			goldenBytes, err := os.ReadFile(filepath.Join("testdata", testCase.fixture+".golden.json"))
+			if err != nil {
+				t.Fatalf("failed to read golden test fixture: %v", err)
+			}
+
+			targetSpec := manifest.PackageSpec{
+				Name:    "pnpm",
+				Version: "9.2.0",
+				Hash:    "+sha512.abcdef",
+			}
+
+			updatedBytes, err := manifest.InsertPackageSpec(inputBytes, targetSpec)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if !bytes.Equal(updatedBytes, goldenBytes) {
+				t.Fatalf("output does not match golden file:\nexpected:\n%s\ngot:\n%s", string(goldenBytes), string(updatedBytes))
+			}
+		})
+	}
+
+	t.Run("returns error when manifest contains invalid JSON", func(t *testing.T) {
+		invalidBytes := []byte(`{invalid-json}`)
+		targetSpec := manifest.PackageSpec{
+			Name:    "pnpm",
+			Version: "9.2.0",
+			Hash:    "+sha512.abcdef",
+		}
+
+		_, err := manifest.InsertPackageSpec(invalidBytes, targetSpec)
+		if !errors.Is(err, manifest.ErrInvalidManifest) {
+			t.Fatalf("expected ErrInvalidManifest, got: %v", err)
+		}
+	})
+
+	t.Run("returns ErrPackageManagerExists when packageManager exists", func(t *testing.T) {
+		manifestBytes := []byte(`{"packageManager": "pnpm@9.2.0"}`)
+		targetSpec := manifest.PackageSpec{
+			Name:    "pnpm",
+			Version: "9.2.0",
+		}
+
+		_, err := manifest.InsertPackageSpec(manifestBytes, targetSpec)
+		if !errors.Is(err, manifest.ErrPackageManagerExists) {
+			t.Fatalf("expected ErrPackageManagerExists, got %v", err)
+		}
+	})
+}
