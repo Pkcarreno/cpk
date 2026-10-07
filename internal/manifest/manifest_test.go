@@ -314,3 +314,129 @@ func TestRemovePackageSpec(t *testing.T) {
 		}
 	})
 }
+
+func TestWritePackageSpec(t *testing.T) {
+	t.Run("leaves file untouched when spec already matches", func(t *testing.T) {
+		manifestPath := filepath.Join(t.TempDir(), "package.json")
+		rawContent := `{"name": "test-pkg", "packageManager":"pnpm@9.1.0+sha512.abcdef"}`
+		err := os.WriteFile(manifestPath, []byte(rawContent), 0600)
+		if err != nil {
+			t.Fatalf("failed to write test file: %v", err)
+		}
+
+		initialStat, err := os.Stat(manifestPath)
+		if err != nil {
+			t.Fatalf("failed to stat file: %v", err)
+		}
+
+		matchingSpec := manifest.PackageSpec{
+			Name:    "pnpm",
+			Version: "9.1.0",
+			Hash:    "+sha512.abcdef",
+		}
+
+		isModified, err := manifest.WritePackageSpec(manifestPath, matchingSpec)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if isModified {
+			t.Fatalf("expected isModified to be false, got true")
+		}
+
+		finalStat, err := os.Stat(manifestPath)
+		if err != nil {
+			t.Fatalf("failed to stat file: %v", err)
+		}
+
+		if !finalStat.ModTime().Equal(initialStat.ModTime()) {
+			t.Fatalf("expected file modification time to remain unchanged")
+		}
+	})
+
+	t.Run("updates file when spec differs", func(t *testing.T) {
+		manifestPath := filepath.Join(t.TempDir(), "package.json")
+		rawContent := `{"name": "test-pkg", "packageManager":"pnpm@9.1.0+sha512.abcdef"}`
+		err := os.WriteFile(manifestPath, []byte(rawContent), 0600)
+		if err != nil {
+			t.Fatalf("failed to write test file: %v", err)
+		}
+
+		differentSpec := manifest.PackageSpec{
+			Name:    "pnpm",
+			Version: "9.2.0",
+			Hash:    "+sha512.123456",
+		}
+
+		isModified, err := manifest.WritePackageSpec(manifestPath, differentSpec)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !isModified {
+			t.Fatalf("expected isModified to be true, got false")
+		}
+
+		currentSpec, err := manifest.ReadPackageSpec(manifestPath)
+		if err != nil {
+			t.Fatalf("unexpected error reading package spec: %v", err)
+		}
+
+		if currentSpec.String() != differentSpec.String() {
+			t.Fatalf("current spec does not match target spec:\nexpected:\n%s\ngot:\n%s", currentSpec.String(), differentSpec.String())
+		}
+	})
+
+	t.Run("inserts packageManager field when absent", func(t *testing.T) {
+		manifestPath := filepath.Join(t.TempDir(), "package.json")
+		rawContent := `{"name": "test-pkg"}`
+		err := os.WriteFile(manifestPath, []byte(rawContent), 0600)
+		if err != nil {
+			t.Fatalf("failed to write test file: %v", err)
+		}
+
+		targetSpec := manifest.PackageSpec{
+			Name:    "pnpm",
+			Version: "9.2.0",
+			Hash:    "+sha512.123456",
+		}
+
+		isModified, err := manifest.WritePackageSpec(manifestPath, targetSpec)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !isModified {
+			t.Fatalf("expected isModified to be true, got false")
+		}
+
+		currentSpec, err := manifest.ReadPackageSpec(manifestPath)
+		if err != nil {
+			t.Fatalf("unexpected error reading package spec: %v", err)
+		}
+
+		if currentSpec.String() != targetSpec.String() {
+			t.Fatalf("current spec does not match target spec:\nexpected:\n%s\ngot:\n%s", currentSpec.String(), targetSpec.String())
+		}
+	})
+
+	t.Run("returns error when manifest contains invalid JSON", func(t *testing.T) {
+		invalidManifestPath := filepath.Join(t.TempDir(), "package.json")
+		invalidContent := `{invalid-json}`
+		err := os.WriteFile(invalidManifestPath, []byte(invalidContent), 0600)
+		if err != nil {
+			t.Fatalf("failed to write test file: %v", err)
+		}
+
+		targetSpec := manifest.PackageSpec{
+			Name:    "pnpm",
+			Version: "9.2.0",
+			Hash:    "+sha512.123456",
+		}
+
+		_, err = manifest.WritePackageSpec(invalidManifestPath, targetSpec)
+		if !errors.Is(err, manifest.ErrInvalidManifest) {
+			t.Fatalf("expected ErrInvalidManifest, got: %v", err)
+		}
+	})
+}

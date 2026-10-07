@@ -149,6 +149,49 @@ func RemovePackageSpec(manifestBytes []byte) ([]byte, error) {
 	return sjson.DeleteBytes(manifestBytes, "packageManager")
 }
 
+func WritePackageSpec(manifestPath string, targetSpec PackageSpec) (isModified bool, err error) {
+	manifestBytes, err := Read(manifestPath)
+	if err != nil {
+		return false, err
+	}
+
+	if !json.Valid(manifestBytes) {
+		return false, ErrInvalidManifest
+	}
+
+	currentValue := gjson.GetBytes(manifestBytes, "packageManager")
+
+	var updatedBytes []byte
+
+	if currentValue.Exists() {
+		if currentValue.String() == targetSpec.String() {
+			return false, nil
+		}
+
+		updatedBytes, err = UpdatePackageSpec(manifestBytes, targetSpec)
+		if err != nil {
+			return false, err
+		}
+	} else {
+		updatedBytes, err = InsertPackageSpec(manifestBytes, targetSpec)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	info, err := os.Stat(manifestPath)
+	if err != nil {
+		return false, err
+	}
+
+	err = os.WriteFile(manifestPath, updatedBytes, info.Mode().Perm())
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func detectIndentation(manifestBytes []byte) string {
 	lines := bytes.Split(manifestBytes, []byte("\n"))
 	for _, line := range lines {
