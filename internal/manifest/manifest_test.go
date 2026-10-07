@@ -89,7 +89,7 @@ func TestReadPackageSpec(t *testing.T) {
 		}
 	})
 
-	t.Run("return ErrMissingPackageManager when key is missing", func(t *testing.T) {
+	t.Run("returns ErrMissingPackageManager when key is missing", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "package.json")
 		err := os.WriteFile(path, []byte(`{"name": "test-pkg"}`), 0600)
 		if err != nil {
@@ -102,7 +102,7 @@ func TestReadPackageSpec(t *testing.T) {
 		}
 	})
 
-	t.Run("return parsed spec when key exists", func(t *testing.T) {
+	t.Run("returns parsed spec when key exists", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "package.json")
 		err := os.WriteFile(path, []byte(`{"packageManager": "pnpm@9.1.0+sha512.abcdef"}`), 0600)
 		if err != nil {
