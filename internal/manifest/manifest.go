@@ -70,6 +70,10 @@ func ReadPackageSpec(manifestPath string) (PackageSpec, error) {
 		return PackageSpec{}, err
 	}
 
+	if !json.Valid(manifestBytes) {
+		return PackageSpec{}, ErrInvalidManifest
+	}
+
 	var payload struct {
 		PackageManager *string `json:"packageManager"`
 	}

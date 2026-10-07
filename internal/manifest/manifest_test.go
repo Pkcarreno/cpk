@@ -124,6 +124,19 @@ func TestReadPackageSpec(t *testing.T) {
 			t.Fatalf("unexpected spec: %+v", spec)
 		}
 	})
+
+	t.Run("returns error when manifest contains invalid JSON", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "package.json")
+		err := os.WriteFile(path, []byte(`{invalid-json}`), 0600)
+		if err != nil {
+			t.Fatalf("failed to write test file: %v", err)
+		}
+
+		_, err = manifest.ReadPackageSpec(path)
+		if !errors.Is(err, manifest.ErrInvalidManifest) {
+			t.Fatalf("expected ErrInvalidiManifest, got: %v", err)
+		}
+	})
 }
 
 func TestUpdatePackageSpec(t *testing.T) {
