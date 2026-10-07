@@ -5,6 +5,9 @@ import (
 	"errors"
 	"os"
 	"strings"
+
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 type PackageSpec struct {
@@ -13,10 +16,15 @@ type PackageSpec struct {
 	Hash    string
 }
 
+func (spec PackageSpec) String() string {
+	return spec.Name + "@" + spec.Version + spec.Hash
+}
+
 var (
 	ErrManifestNotFound      = errors.New("the package.json file does not exist")
 	ErrMissingPackageManager = errors.New("the package.json file does not have a packageManager field")
 	ErrInvalidPackageSpec    = errors.New("the packageManager field is invalid")
+	ErrInvalidManifest       = errors.New("the package.json file has invalid syntax")
 )
 
 func Read(manifestPath string) ([]byte, error) {
@@ -79,4 +87,15 @@ func ReadPackageSpec(manifestPath string) (PackageSpec, error) {
 	}
 
 	return spec, nil
+}
+
+func UpdatePackageSpec(manifestBytes []byte, spec PackageSpec) ([]byte, error) {
+	if !json.Valid(manifestBytes) {
+		return nil, ErrInvalidManifest
+	}
+	if !gjson.GetBytes(manifestBytes, "packageManager").Exists() {
+		return nil, ErrMissingPackageManager
+	}
+
+	return sjson.SetBytes(manifestBytes, "packageManager", spec.String())
 }

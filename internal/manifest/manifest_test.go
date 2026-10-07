@@ -1,6 +1,7 @@
 package manifest_test
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -8,6 +9,31 @@ import (
 
 	"github.com/pkcarreno/cpk/internal/manifest"
 )
+
+func TestPackageSpec_String(t *testing.T) {
+	t.Run("formats spec with integrity hash", func(t *testing.T) {
+		spec := manifest.PackageSpec{
+			Name:    "pnpm",
+			Version: "9.2.0",
+			Hash:    "+sha512.abcdef",
+		}
+		expected := "pnpm@9.2.0+sha512.abcdef"
+		if spec.String() != expected {
+			t.Fatalf("expected: %q, got: %q", expected, spec.String())
+		}
+	})
+
+	t.Run("formats spec without integrity hash", func(t *testing.T) {
+		spec := manifest.PackageSpec{
+			Name:    "yarn",
+			Version: "4.1.0",
+		}
+		expected := "yarn@4.1.0"
+		if spec.String() != expected {
+			t.Fatalf("expected: %q, got: %q", expected, spec.String())
+		}
+	})
+}
 
 func TestReadNotFound(t *testing.T) {
 	missingPath := filepath.Join(t.TempDir(), "package.json")
@@ -89,6 +115,75 @@ func TestReadPackageSpec(t *testing.T) {
 		}
 		if spec.Name != "pnpm" || spec.Version != "9.1.0" || spec.Hash != "+sha512.abcdef" {
 			t.Fatalf("unexpected spec: %+v", spec)
+		}
+	})
+}
+
+func TestUpdatePackageSpec(t *testing.T) {
+
+	testCases := []struct {
+		name    string
+		fixture string
+	}{
+		{name: "preserves 2 spaces indentation", fixture: "existing_2spaces"},
+		{name: "preserves 4 spaces indentation", fixture: "existing_4spaces"},
+		{name: "preserves tab indentation", fixture: "existing_tabs"},
+		{name: "preserves unformatted JSON", fixture: "existing_unformatted"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			inputBytes, err := os.ReadFile(filepath.Join("testdata", testCase.fixture+".json"))
+			if err != nil {
+				t.Fatalf("failed to read input test fixture: %v", err)
+			}
+
+			goldenBytes, err := os.ReadFile(filepath.Join("testdata", testCase.fixture+".golden.json"))
+			if err != nil {
+				t.Fatalf("failed to read golden test fixture: %v", err)
+			}
+
+			targetSpec := manifest.PackageSpec{
+				Name:    "pnpm",
+				Version: "9.2.0",
+				Hash:    "+sha512.abcdef",
+			}
+
+			updatedBytes, err := manifest.UpdatePackageSpec(inputBytes, targetSpec)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if !bytes.Equal(updatedBytes, goldenBytes) {
+				t.Fatalf("output does not match golden file:\nexpected:\n%s\ngot:\n%s", string(goldenBytes), string(updatedBytes))
+			}
+		})
+	}
+
+	t.Run("returns error when manifest contains invalid JSON", func(t *testing.T) {
+		invalidBytes := []byte(`{invalid-json}`)
+		targetSpec := manifest.PackageSpec{
+			Name:    "pnpm",
+			Version: "9.2.0",
+			Hash:    "+sha512.abcdef",
+		}
+
+		_, err := manifest.UpdatePackageSpec(invalidBytes, targetSpec)
+		if !errors.Is(err, manifest.ErrInvalidManifest) {
+			t.Fatalf("expected ErrInvalidManifest, got: %v", err)
+		}
+	})
+
+	t.Run("returns ErrMissingPackageManager when key is absent", func(t *testing.T) {
+		manifestBytes := []byte(`{"name": "test-pkg"}`)
+		targetSpec := manifest.PackageSpec{
+			Name:    "pnpm",
+			Version: "9.2.0",
+		}
+
+		_, err := manifest.UpdatePackageSpec(manifestBytes, targetSpec)
+		if !errors.Is(err, manifest.ErrMissingPackageManager) {
+			t.Fatalf("expected ErrMissingPackageManager, got %v", err)
 		}
 	})
 }
