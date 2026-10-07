@@ -7,7 +7,7 @@ test: ## Run unit tests
 	go test ./...
 
 fmt: ## Format source files
-	gofmt -s -w .
+	gofmt -s -l -w .
 
 vet: ## Inspect code with static analyzer
 	go vet ./...
