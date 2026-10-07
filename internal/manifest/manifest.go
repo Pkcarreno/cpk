@@ -49,7 +49,7 @@ func ParsePackageSpec(raw string) (PackageSpec, error) {
 	}
 
 	version, hash, hasHash := strings.Cut(rest, "+")
-	if version == "" {
+	if version == "" || (hasHash && hash == "") {
 		return PackageSpec{}, ErrInvalidPackageSpec
 	}
 	var formattedHash string

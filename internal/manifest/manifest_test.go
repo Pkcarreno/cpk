@@ -78,6 +78,13 @@ func TestParsePackageSpec(t *testing.T) {
 			t.Fatalf("expected ErrInvalidPackageSpec, got: %v", err)
 		}
 	})
+
+	t.Run("returns error on spec with empty hash", func(t *testing.T) {
+		_, err := manifest.ParsePackageSpec("pnpm@9.1.0+")
+		if !errors.Is(err, manifest.ErrInvalidPackageSpec) {
+			t.Fatalf("expected ErrInvalidPackageSpec, got: %v", err)
+		}
+	})
 }
 
 func TestReadPackageSpec(t *testing.T) {
