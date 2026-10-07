@@ -138,6 +138,17 @@ func InsertPackageSpec(manifestBytes []byte, spec PackageSpec) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+func RemovePackageSpec(manifestBytes []byte) ([]byte, error) {
+	if !json.Valid(manifestBytes) {
+		return nil, ErrInvalidManifest
+	}
+	if !gjson.GetBytes(manifestBytes, "packageManager").Exists() {
+		return manifestBytes, nil
+	}
+
+	return sjson.DeleteBytes(manifestBytes, "packageManager")
+}
+
 func detectIndentation(manifestBytes []byte) string {
 	lines := bytes.Split(manifestBytes, []byte("\n"))
 	for _, line := range lines {
