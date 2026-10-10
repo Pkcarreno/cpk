@@ -18,6 +18,8 @@ func NewRootCommand() *cobra.Command {
 
 	rootCommand.PersistentFlags().String("registry", "", "URL of the npm registry")
 
+	rootCommand.AddCommand(NewCurrentCommand())
+
 	return rootCommand
 }
 
