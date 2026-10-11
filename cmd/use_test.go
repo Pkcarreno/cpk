@@ -38,127 +38,89 @@ func TestNewUseCommand(t *testing.T) {
 		}
 	})
 
-	t.Run("pins the package manager to the latest stable version in package.json", func(t *testing.T) {
-		temporalDirectory := t.TempDir()
-		manifestPath := filepath.Join(temporalDirectory, "package.json")
-		err := os.WriteFile(manifestPath, []byte(`{"name": "test-pkg"}`), 0600)
-		if err != nil {
-			t.Fatalf("failed to write test file: %v", err)
-		}
+	testCases := []struct {
+		name                  string
+		arguments             []string
+		expectedVersion       string
+		expectedIntegrityHash string
+	}{
+		{
+			name:                  "pins the package manager to the latest stable version when no target is specified",
+			arguments:             []string{"pnpm"},
+			expectedVersion:       "9.5.0",
+			expectedIntegrityHash: "+sha512.8456c09bcf382e94fc13523eb08da1715a237027147feca54f962bdf8537a917c7fffda702dec6d4d1589aa1930e944f9cbd7166733122b03dff1b9ab5bb995d",
+		},
+		{
+			name:                  "pins the package manager to an explicit version when a target is specified",
+			arguments:             []string{"pnpm@9.1.0"},
+			expectedVersion:       "9.1.0",
+			expectedIntegrityHash: "+sha512.01010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101",
+		},
+	}
 
-		t.Chdir(temporalDirectory)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			temporalDirectory := t.TempDir()
+			manifestPath := filepath.Join(temporalDirectory, "package.json")
+			err := os.WriteFile(manifestPath, []byte(`{"name": "test-pkg"}`), 0600)
+			if err != nil {
+				t.Fatalf("failed to write test file: %v", err)
+			}
 
-		mockServer := httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-			responseWriter.Header().Set("Content-Type", "application/json")
-			responseWriter.WriteHeader(http.StatusOK)
-			responseWriter.Write([]byte(`{
-					"name": "pnpm",
-					"dist-tags": {"latest": "9.5.0"},
-					"versions": {
-						"9.1.0": {"dist": {"integrity": "sha512-AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ=="}},
-						"9.5.0": {"dist": {"integrity": "sha512-hFbAm884LpT8E1I+sI2hcVojcCcUf+ylT5Yr34U3qRfH//2nAt7G1NFYmqGTDpRPnL1xZnMxIrA9/xuatbuZXQ=="}}
-					}
-				}`))
-		}))
-		defer mockServer.Close()
+			t.Chdir(temporalDirectory)
 
-		t.Setenv("NPM_CONFIG_REGISTRY", mockServer.URL)
+			mockServer := httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+				responseWriter.Header().Set("Content-Type", "application/json")
+				responseWriter.WriteHeader(http.StatusOK)
+				responseWriter.Write([]byte(`{
+						"name": "pnpm",
+						"dist-tags": {"latest": "9.5.0"},
+						"versions": {
+							"9.1.0": {"dist": {"integrity": "sha512-AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ=="}},
+							"9.5.0": {"dist": {"integrity": "sha512-hFbAm884LpT8E1I+sI2hcVojcCcUf+ylT5Yr34U3qRfH//2nAt7G1NFYmqGTDpRPnL1xZnMxIrA9/xuatbuZXQ=="}}
+						}
+					}`))
+			}))
+			defer mockServer.Close()
 
-		var output bytes.Buffer
+			t.Setenv("NPM_CONFIG_REGISTRY", mockServer.URL)
 
-		useCommand := cmd.NewUseCommand()
-		useCommand.SetArgs([]string{"pnpm"})
-		useCommand.SetOut(&output)
-		useCommand.SetErr(&output)
+			var output bytes.Buffer
 
-		err = useCommand.Execute()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+			useCommand := cmd.NewUseCommand()
+			useCommand.SetArgs(testCase.arguments)
+			useCommand.SetOut(&output)
+			useCommand.SetErr(&output)
 
-		expectedOutput := ""
+			err = useCommand.Execute()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 
-		if output.String() != expectedOutput {
-			t.Fatalf("output does not match expected output, expected: %q, got: %v", expectedOutput, output)
-		}
+			expectedOutput := ""
 
-		updatedManifestSpec, err := manifest.ReadPackageSpec(manifestPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+			if output.String() != expectedOutput {
+				t.Fatalf("output does not match expected output, expected: %q, got: %v", expectedOutput, output)
+			}
 
-		expectedManifestSpec := manifest.PackageSpec{
-			Name:    "pnpm",
-			Version: "9.5.0",
-			Hash:    "+sha512.8456c09bcf382e94fc13523eb08da1715a237027147feca54f962bdf8537a917c7fffda702dec6d4d1589aa1930e944f9cbd7166733122b03dff1b9ab5bb995d",
-		}
+			updatedPackageSpec, err := manifest.ReadPackageSpec(manifestPath)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 
-		if updatedManifestSpec != expectedManifestSpec {
-			t.Fatalf("updated manifest spec does not match expected manifest spec, expected: %q, got: %q", expectedManifestSpec.String(), updatedManifestSpec.String())
-		}
-	})
+			expectedPackageSpec := manifest.PackageSpec{
+				Name:    "pnpm",
+				Version: testCase.expectedVersion,
+				Hash:    testCase.expectedIntegrityHash,
+			}
 
-	t.Run("pins the package manager to an explicit version when target is specified", func(t *testing.T) {
-		temporalDirectory := t.TempDir()
-		manifestPath := filepath.Join(temporalDirectory, "package.json")
-		err := os.WriteFile(manifestPath, []byte(`{"name": "test-pkg"}`), 0600)
-		if err != nil {
-			t.Fatalf("failed to write test file: %v", err)
-		}
+			if updatedPackageSpec != expectedPackageSpec {
+				t.Fatalf("updated package spec does not match expected package spec, expected: %q, got: %q", expectedPackageSpec.String(), updatedPackageSpec.String())
+			}
+		})
+	}
 
-		t.Chdir(temporalDirectory)
-
-		mockServer := httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-			responseWriter.Header().Set("Content-Type", "application/json")
-			responseWriter.WriteHeader(http.StatusOK)
-			responseWriter.Write([]byte(`{
-					"name": "pnpm",
-					"dist-tags": {"latest": "9.5.0"},
-					"versions": {
-						"9.1.0": {"dist": {"integrity": "sha512-AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ=="}},
-						"9.5.0": {"dist": {"integrity": "sha512-hFbAm884LpT8E1I+sI2hcVojcCcUf+ylT5Yr34U3qRfH//2nAt7G1NFYmqGTDpRPnL1xZnMxIrA9/xuatbuZXQ=="}}
-					}
-				}`))
-		}))
-		defer mockServer.Close()
-
-		t.Setenv("NPM_CONFIG_REGISTRY", mockServer.URL)
-
-		var output bytes.Buffer
-
-		useCommand := cmd.NewUseCommand()
-		useCommand.SetArgs([]string{"pnpm@9.1.0"})
-		useCommand.SetOut(&output)
-		useCommand.SetErr(&output)
-
-		err = useCommand.Execute()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		expectedOutput := ""
-
-		if output.String() != expectedOutput {
-			t.Fatalf("output does not match expected output, expected: %q, got: %v", expectedOutput, output)
-		}
-
-		updatedManifestSpec, err := manifest.ReadPackageSpec(manifestPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		expectedManifestSpec := manifest.PackageSpec{
-			Name:    "pnpm",
-			Version: "9.1.0",
-			Hash:    "+sha512.01010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101",
-		}
-
-		if updatedManifestSpec != expectedManifestSpec {
-			t.Fatalf("updated manifest spec does not match expected manifest spec, expected: %q, got: %q", expectedManifestSpec.String(), updatedManifestSpec.String())
-		}
-	})
-
-	t.Run("preserves the manifest file when the version and hash already match", func(t *testing.T) {
+	t.Run("preserves the manifest file when the version and integrity hash already match", func(t *testing.T) {
 		temporalDirectory := t.TempDir()
 		manifestPath := filepath.Join(temporalDirectory, "package.json")
 		initialContent := []byte(`{"name": "test-pkg","packageManager": "pnpm@9.5.0+sha512.8456c09bcf382e94fc13523eb08da1715a237027147feca54f962bdf8537a917c7fffda702dec6d4d1589aa1930e944f9cbd7166733122b03dff1b9ab5bb995d"}`)
@@ -192,7 +154,7 @@ func TestNewUseCommand(t *testing.T) {
 		useCommand.SetOut(&output)
 		useCommand.SetErr(&output)
 
-		manifestBeforeExecutionInfo, err := os.Stat(manifestPath)
+		beforeFileInfo, err := os.Stat(manifestPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -202,13 +164,13 @@ func TestNewUseCommand(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		manifestAfterExecutionInfo, err := os.Stat(manifestPath)
+		afterFileInfo, err := os.Stat(manifestPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if !manifestAfterExecutionInfo.ModTime().Equal(manifestBeforeExecutionInfo.ModTime()) {
-			t.Fatalf("expected file modification time to remain unchanged")
+		if !afterFileInfo.ModTime().Equal(beforeFileInfo.ModTime()) {
+			t.Fatalf("expected the file modification time to remain unchanged")
 		}
 
 		expectedOutput := ""
@@ -217,23 +179,23 @@ func TestNewUseCommand(t *testing.T) {
 			t.Fatalf("output does not match expected output, expected: %q, got: %v", expectedOutput, output)
 		}
 
-		updatedManifestSpec, err := manifest.ReadPackageSpec(manifestPath)
+		updatedPackageSpec, err := manifest.ReadPackageSpec(manifestPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		expectedManifestSpec := manifest.PackageSpec{
+		expectedPackageSpec := manifest.PackageSpec{
 			Name:    "pnpm",
 			Version: "9.5.0",
 			Hash:    "+sha512.8456c09bcf382e94fc13523eb08da1715a237027147feca54f962bdf8537a917c7fffda702dec6d4d1589aa1930e944f9cbd7166733122b03dff1b9ab5bb995d",
 		}
 
-		if updatedManifestSpec != expectedManifestSpec {
-			t.Fatalf("updated manifest spec does not match expected manifest spec, expected: %q, got: %q", expectedManifestSpec.String(), updatedManifestSpec.String())
+		if updatedPackageSpec != expectedPackageSpec {
+			t.Fatalf("updated package spec does not match expected package spec, expected: %q, got: %q", expectedPackageSpec.String(), updatedPackageSpec.String())
 		}
 	})
 
-	t.Run("returns an error when package.json does not exist", func(t *testing.T) {
+	t.Run("returns an error when the package.json file does not exist", func(t *testing.T) {
 		temporalDirectory := t.TempDir()
 		t.Chdir(temporalDirectory)
 
