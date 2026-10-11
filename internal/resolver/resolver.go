@@ -123,3 +123,15 @@ func resolveNumericPrefix(metadata registry.PackageMetadata, query string) (stri
 
 	return highestVersion.raw, true
 }
+
+func IsLowerVersion(candidateVersion, currentVersion string) (bool, error) {
+	candidate, isCandidateParsed := parseSemanticVersion(candidateVersion)
+	if !isCandidateParsed {
+		return false, ErrVersionNotFound
+	}
+	current, isCurrentParsed := parseSemanticVersion(currentVersion)
+	if !isCurrentParsed {
+		return false, ErrVersionNotFound
+	}
+	return isHigherVersion(current, candidate), nil
+}

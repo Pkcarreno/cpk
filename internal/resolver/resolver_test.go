@@ -134,3 +134,45 @@ func TestResolveVersion(t *testing.T) {
 		}
 	})
 }
+
+func TestIsLowerVersion(t *testing.T) {
+	testCases := []struct {
+		name             string
+		candidateVersion string
+		currentVersion   string
+		isLowerExpected  bool
+	}{
+		{
+			name:             "returns true when the candidate version is lower than the current version",
+			candidateVersion: "9.2.4",
+			currentVersion:   "9.5.0",
+			isLowerExpected:  true,
+		},
+		{
+			name:             "returns false when the candidate version is higher than the current version",
+			candidateVersion: "9.5.0",
+			currentVersion:   "9.2.4",
+			isLowerExpected:  false,
+		},
+		{
+			name:             "returns false when the candidate version is equal to the current version",
+			candidateVersion: "9.5.0",
+			currentVersion:   "9.5.0",
+			isLowerExpected:  false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			isLower, err := resolver.IsLowerVersion(testCase.candidateVersion, testCase.currentVersion)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if isLower != testCase.isLowerExpected {
+				t.Fatalf("expected value does not match the returned value, expected: %v, got: %v", testCase.isLowerExpected, isLower)
+			}
+
+		})
+	}
+}
