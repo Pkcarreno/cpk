@@ -277,64 +277,6 @@ func TestInsertPackageSpec(t *testing.T) {
 	})
 }
 
-func TestRemovePackageSpec(t *testing.T) {
-
-	testCases := []struct {
-		name    string
-		fixture string
-	}{
-		{name: "preserves 2 spaces indentation", fixture: "remove_2spaces"},
-		{name: "preserves 4 spaces indentation", fixture: "remove_4spaces"},
-		{name: "preserves tab indentation", fixture: "remove_tabs"},
-		{name: "preserves unformatted JSON", fixture: "remove_unformatted"},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			inputBytes, err := os.ReadFile(filepath.Join("testdata", testCase.fixture+".json"))
-			if err != nil {
-				t.Fatalf("failed to read input test fixture: %v", err)
-			}
-
-			goldenBytes, err := os.ReadFile(filepath.Join("testdata", testCase.fixture+".golden.json"))
-			if err != nil {
-				t.Fatalf("failed to read golden test fixture: %v", err)
-			}
-
-			updatedBytes, err := manifest.RemovePackageSpec(inputBytes)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if !bytes.Equal(updatedBytes, goldenBytes) {
-				t.Fatalf("output does not match golden file:\nexpected:\n%s\ngot:\n%s", string(goldenBytes), string(updatedBytes))
-			}
-		})
-	}
-
-	t.Run("returns error when manifest contains invalid JSON", func(t *testing.T) {
-		invalidBytes := []byte(`{invalid-json}`)
-
-		_, err := manifest.RemovePackageSpec(invalidBytes)
-		if !errors.Is(err, manifest.ErrInvalidManifest) {
-			t.Fatalf("expected ErrInvalidManifest, got: %v", err)
-		}
-	})
-
-	t.Run("returns unmodified bytes when packageManager is absent", func(t *testing.T) {
-		manifestBytes := []byte(`{"name": "demo"}`)
-
-		updatedBytes, err := manifest.RemovePackageSpec(manifestBytes)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if !bytes.Equal(manifestBytes, updatedBytes) {
-			t.Fatalf("output does not match original manifest:\nexpected:\n%s\ngot:\n%s", string(manifestBytes), string(updatedBytes))
-		}
-	})
-}
-
 func TestWritePackageSpec(t *testing.T) {
 	t.Run("leaves file untouched when spec already matches", func(t *testing.T) {
 		manifestPath := filepath.Join(t.TempDir(), "package.json")

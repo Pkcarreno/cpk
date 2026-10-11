@@ -142,17 +142,6 @@ func InsertPackageSpec(manifestBytes []byte, spec PackageSpec) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func RemovePackageSpec(manifestBytes []byte) ([]byte, error) {
-	if !json.Valid(manifestBytes) {
-		return nil, ErrInvalidManifest
-	}
-	if !gjson.GetBytes(manifestBytes, "packageManager").Exists() {
-		return manifestBytes, nil
-	}
-
-	return sjson.DeleteBytes(manifestBytes, "packageManager")
-}
-
 func WritePackageSpec(manifestPath string, targetSpec PackageSpec) (isModified bool, err error) {
 	manifestBytes, err := Read(manifestPath)
 	if err != nil {
