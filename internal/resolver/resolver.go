@@ -135,3 +135,23 @@ func IsLowerVersion(candidateVersion, currentVersion string) (bool, error) {
 	}
 	return isHigherVersion(current, candidate), nil
 }
+
+func ResolvePackageName(packageManager, targetVersion string) string {
+	if packageManager != "yarn" {
+		return packageManager
+	}
+
+	if targetVersion == "" || targetVersion == "latest" {
+		return "@yarnpkg/cli-dist"
+	}
+
+	cleanVersion, _, _ := strings.Cut(targetVersion, "-")
+	cleanVersion, _, _ = strings.Cut(cleanVersion, "+")
+	parts := strings.Split(cleanVersion, ".")
+
+	if major, err := strconv.Atoi(parts[0]); err == nil && major >= 0 && major < 2 {
+		return "yarn"
+	}
+
+	return "@yarnpkg/cli-dist"
+}

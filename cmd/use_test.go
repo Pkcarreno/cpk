@@ -39,22 +39,46 @@ func TestNewUseCommand(t *testing.T) {
 	})
 
 	testCases := []struct {
-		name                  string
-		arguments             []string
-		expectedVersion       string
-		expectedIntegrityHash string
+		name                   string
+		arguments              []string
+		expectedPackageManager string
+		expectedVersion        string
+		expectedIntegrityHash  string
 	}{
 		{
-			name:                  "pins the package manager to the latest stable version when no target is specified",
-			arguments:             []string{"pnpm"},
-			expectedVersion:       "9.5.0",
-			expectedIntegrityHash: "+sha512.8456c09bcf382e94fc13523eb08da1715a237027147feca54f962bdf8537a917c7fffda702dec6d4d1589aa1930e944f9cbd7166733122b03dff1b9ab5bb995d",
+			name:                   "pins the package manager to the latest stable version when no target is specified",
+			arguments:              []string{"pnpm"},
+			expectedPackageManager: "pnpm",
+			expectedVersion:        "9.5.0",
+			expectedIntegrityHash:  "+sha512.8456c09bcf382e94fc13523eb08da1715a237027147feca54f962bdf8537a917c7fffda702dec6d4d1589aa1930e944f9cbd7166733122b03dff1b9ab5bb995d",
 		},
 		{
-			name:                  "pins the package manager to an explicit version when a target is specified",
-			arguments:             []string{"pnpm@9.1.0"},
-			expectedVersion:       "9.1.0",
-			expectedIntegrityHash: "+sha512.01010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101",
+			name:                   "pins the package manager to an explicit version when a target is specified",
+			arguments:              []string{"pnpm@9.1.0"},
+			expectedPackageManager: "pnpm",
+			expectedVersion:        "9.1.0",
+			expectedIntegrityHash:  "+sha512.01010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101",
+		},
+		{
+			name:                   "pins yarn to latest berry version when no target is specified",
+			arguments:              []string{"yarn"},
+			expectedPackageManager: "yarn",
+			expectedVersion:        "4.18.0",
+			expectedIntegrityHash:  "+sha512.8456c09bcf382e94fc13523eb08da1715a237027147feca54f962bdf8537a917c7fffda702dec6d4d1589aa1930e944f9cbd7166733122b03dff1b9ab5bb995d",
+		},
+		{
+			name:                   "pins yarn to modern berry when target semver is 2.0.0 or higher",
+			arguments:              []string{"yarn@4.18.0"},
+			expectedPackageManager: "yarn",
+			expectedVersion:        "4.18.0",
+			expectedIntegrityHash:  "+sha512.8456c09bcf382e94fc13523eb08da1715a237027147feca54f962bdf8537a917c7fffda702dec6d4d1589aa1930e944f9cbd7166733122b03dff1b9ab5bb995d",
+		},
+		{
+			name:                   "pins yarn to classic yarn when target semver is lower than 2.0.0",
+			arguments:              []string{"yarn@1.22.22"},
+			expectedPackageManager: "yarn",
+			expectedVersion:        "1.22.22",
+			expectedIntegrityHash:  "+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610",
 		},
 	}
 
@@ -71,15 +95,38 @@ func TestNewUseCommand(t *testing.T) {
 
 			mockServer := httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 				responseWriter.Header().Set("Content-Type", "application/json")
-				responseWriter.WriteHeader(http.StatusOK)
-				responseWriter.Write([]byte(`{
-						"name": "pnpm",
-						"dist-tags": {"latest": "9.5.0"},
-						"versions": {
-							"9.1.0": {"dist": {"integrity": "sha512-AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ=="}},
-							"9.5.0": {"dist": {"integrity": "sha512-hFbAm884LpT8E1I+sI2hcVojcCcUf+ylT5Yr34U3qRfH//2nAt7G1NFYmqGTDpRPnL1xZnMxIrA9/xuatbuZXQ=="}}
-						}
-					}`))
+				switch request.URL.Path {
+				case "/pnpm":
+					responseWriter.WriteHeader(http.StatusOK)
+					responseWriter.Write([]byte(`{
+                            "name": "pnpm",
+                            "dist-tags": {"latest": "9.5.0"},
+                            "versions": {
+                                "9.1.0": {"dist": {"integrity": "sha512-AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ=="}},
+                                "9.5.0": {"dist": {"integrity": "sha512-hFbAm884LpT8E1I+sI2hcVojcCcUf+ylT5Yr34U3qRfH//2nAt7G1NFYmqGTDpRPnL1xZnMxIrA9/xuatbuZXQ=="}}
+                            }
+                        }`))
+				case "/@yarnpkg/cli-dist":
+					responseWriter.WriteHeader(http.StatusOK)
+					responseWriter.Write([]byte(`{
+                            "name": "@yarnpkg/cli-dist",
+                            "dist-tags": {"latest": "4.18.0"},
+                            "versions": {
+                                "4.18.0": {"dist": {"integrity": "sha512-hFbAm884LpT8E1I+sI2hcVojcCcUf+ylT5Yr34U3qRfH//2nAt7G1NFYmqGTDpRPnL1xZnMxIrA9/xuatbuZXQ=="}}
+                            }
+                        }`))
+				case "/yarn":
+					responseWriter.WriteHeader(http.StatusOK)
+					responseWriter.Write([]byte(`{
+                            "name": "yarn",
+                            "dist-tags": {"latest": "1.22.22"},
+                            "versions": {
+                                "1.22.22": {"dist": {"shasum": "ac34549e6aa8e7ead463a7407e1c7390f61a6610"}}
+                            }
+                        }`))
+				default:
+					responseWriter.WriteHeader(http.StatusNotFound)
+				}
 			}))
 			defer mockServer.Close()
 
@@ -109,7 +156,7 @@ func TestNewUseCommand(t *testing.T) {
 			}
 
 			expectedPackageSpec := manifest.PackageSpec{
-				Name:    "pnpm",
+				Name:    testCase.expectedPackageManager,
 				Version: testCase.expectedVersion,
 				Hash:    testCase.expectedIntegrityHash,
 			}

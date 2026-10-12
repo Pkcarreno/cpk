@@ -39,7 +39,9 @@ func NewUseCommand() *cobra.Command {
 
 			registryURL := registry.ResolveRegistryURL(customRegistry)
 
-			metadata, err := registry.FetchPackageMetadata(cmd.Context(), nil, registryURL, packageManager)
+			packageName := resolver.ResolvePackageName(packageManager, targetVersion)
+
+			metadata, err := registry.FetchPackageMetadata(cmd.Context(), nil, registryURL, packageName)
 			if err != nil {
 				return err
 			}

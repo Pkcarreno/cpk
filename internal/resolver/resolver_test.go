@@ -176,3 +176,76 @@ func TestIsLowerVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestResolvePackageName(t *testing.T) {
+	testCases := []struct {
+		name           string
+		packageManager string
+		targetVersion  string
+		expectedName   string
+	}{
+		{
+			name:           "returns the package manager name when package manager is not yarn",
+			packageManager: "pnpm",
+			targetVersion:  "latest",
+			expectedName:   "pnpm",
+		},
+		{
+			name:           "returns berry package name when yarn target is latest",
+			packageManager: "yarn",
+			targetVersion:  "latest",
+			expectedName:   "@yarnpkg/cli-dist",
+		},
+		{
+			name:           "returns berry package name when yarn target is empty",
+			packageManager: "yarn",
+			targetVersion:  "",
+			expectedName:   "@yarnpkg/cli-dist",
+		},
+		{
+			name:           "returns classic yarn package name when target version is lower than 2.0.0",
+			packageManager: "yarn",
+			targetVersion:  "1.22.22",
+			expectedName:   "yarn",
+		},
+		{
+			name:           "returns classic yarn package name when target version prefix is 1",
+			packageManager: "yarn",
+			targetVersion:  "1",
+			expectedName:   "yarn",
+		},
+		{
+			name:           "returns classic yarn package name when target version prefix is 1.22",
+			packageManager: "yarn",
+			targetVersion:  "1.22",
+			expectedName:   "yarn",
+		},
+		{
+			name:           "returns berry package name when target version is 2.0.0",
+			packageManager: "yarn",
+			targetVersion:  "2.0.0",
+			expectedName:   "@yarnpkg/cli-dist",
+		},
+		{
+			name:           "returns berry package name when target version is higher than 2.0.0",
+			packageManager: "yarn",
+			targetVersion:  "4.18.0",
+			expectedName:   "@yarnpkg/cli-dist",
+		},
+		{
+			name:           "returns berry package name when target version prefix is 4",
+			packageManager: "yarn",
+			targetVersion:  "4",
+			expectedName:   "@yarnpkg/cli-dist",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			actualName := resolver.ResolvePackageName(testCase.packageManager, testCase.targetVersion)
+			if actualName != testCase.expectedName {
+				t.Fatalf("expected package name %q, got: %q", testCase.expectedName, actualName)
+			}
+		})
+	}
+}
