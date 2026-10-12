@@ -40,17 +40,21 @@ func NewUpCommand() *cobra.Command {
 
 			registryURL := registry.ResolveRegistryURL(customRegistry)
 
-			metadata, err := registry.FetchPackageMetadata(cmd.Context(), nil, registryURL, packageSpec.Name)
-			if err != nil {
-				return err
-			}
-
 			targetVersion := "latest"
 			if len(args) > 0 {
 				if args[0] == "" {
 					return resolver.ErrVersionNotFound
 				}
 				targetVersion = args[0]
+			} else if packageSpec.Name == "yarn" && resolver.ResolvePackageName(packageSpec.Name, packageSpec.Version) == "yarn" {
+				targetVersion = "1"
+			}
+
+			packageName := resolver.ResolvePackageName(packageSpec.Name, targetVersion)
+
+			metadata, err := registry.FetchPackageMetadata(cmd.Context(), nil, registryURL, packageName)
+			if err != nil {
+				return err
 			}
 
 			resolvedVersion, err := resolver.ResolveVersion(metadata, targetVersion)
