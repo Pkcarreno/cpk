@@ -27,6 +27,7 @@ var (
 	ErrInvalidPackageSpec    = errors.New("the packageManager field is invalid")
 	ErrInvalidManifest       = errors.New("the package.json file has invalid syntax")
 	ErrPackageManagerExists  = errors.New("the package.json file already has a packageManager field")
+	ErrInvalidIntegrityHash  = errors.New("the integrity hash is invalid")
 )
 
 func Read(manifestPath string) ([]byte, error) {
@@ -54,6 +55,9 @@ func ParsePackageSpec(raw string) (PackageSpec, error) {
 	}
 	var formattedHash string
 	if hasHash {
+		if err := validateIntegrityHash(hash); err != nil {
+			return PackageSpec{}, err
+		}
 		formattedHash = "+" + hash
 	}
 
@@ -206,4 +210,36 @@ func detectIndentation(manifestBytes []byte) string {
 		}
 	}
 	return ""
+}
+
+var supportedAlgorithmLengths = map[string]int{
+	"sha1":   40,
+	"sha224": 56,
+	"sha256": 64,
+	"sha384": 96,
+	"sha512": 128,
+}
+
+func validateIntegrityHash(hash string) error {
+	algorithm, hexHash, hasDot := strings.Cut(hash, ".")
+	if !hasDot || algorithm == "" || hexHash == "" {
+		return ErrInvalidIntegrityHash
+	}
+
+	expectedLength, isSupported := supportedAlgorithmLengths[algorithm]
+	if !isSupported {
+		return ErrInvalidIntegrityHash
+	}
+
+	if len(hexHash) != expectedLength {
+		return ErrInvalidIntegrityHash
+	}
+
+	for _, character := range hexHash {
+		if (character < '0' || character > '9') && (character < 'a' || character > 'f') {
+			return ErrInvalidIntegrityHash
+		}
+	}
+
+	return nil
 }
