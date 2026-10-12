@@ -20,6 +20,7 @@ type PackageVersion struct {
 
 type PackageDist struct {
 	Integrity string `json:"integrity"`
+	Shasum    string `json:"shasum"`
 }
 
 var (

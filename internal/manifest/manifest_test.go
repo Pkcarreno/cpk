@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pkcarreno/cpk/internal/manifest"
@@ -64,60 +64,60 @@ func TestParsePackageSpec(t *testing.T) {
 		rawSpec      string
 		expectedSpec manifest.PackageSpec
 	}{
-        {
-            name:         "parses a valid package specification without an integrity hash",
-            rawSpec:      "yarn@4.1.0",
-            expectedSpec: manifest.PackageSpec{
-                Name:    "yarn",
-                Version: "4.1.0",
-                Hash:    "",
-            },
-        },
-        {
-            name:         "parses a valid package specification with sha1 integrity hash",
-            rawSpec:      "pnpm@9.1.0+sha1." + sha1Hex,
-            expectedSpec: manifest.PackageSpec{
-                Name:    "pnpm",
-                Version: "9.1.0",
-                Hash:    "+sha1." + sha1Hex,
-            },
-        },
-        {
-            name:         "parses a valid package specification with sha224 integrity hash",
-            rawSpec:      "yarn@4.1.0+sha224." + sha224Hex,
-            expectedSpec: manifest.PackageSpec{
-                Name:    "yarn",
-                Version: "4.1.0",
-                Hash:    "+sha224." + sha224Hex,
-            },
-        },
-        {
-            name:         "parses a valid package specification with sha256 integrity hash",
-            rawSpec:      "pnpm@9.1.0+sha256." + sha256Hex,
-            expectedSpec: manifest.PackageSpec{
-                Name:    "pnpm",
-                Version: "9.1.0",
-                Hash:    "+sha256." + sha256Hex,
-            },
-        },
-        {
-            name:         "parses a valid package specification with sha384 integrity hash",
-            rawSpec:      "npm@10.2.0+sha384." + sha384Hex,
-            expectedSpec: manifest.PackageSpec{
-                Name:    "npm",
-                Version: "10.2.0",
-                Hash:    "+sha384." + sha384Hex,
-            },
-        },
-        {
-            name:         "parses a valid package specification with sha512 integrity hash",
-            rawSpec:      "pnpm@9.1.0+sha512." + sha512Hex,
-            expectedSpec: manifest.PackageSpec{
-                Name:    "pnpm",
-                Version: "9.1.0",
-                Hash:    "+sha512." + sha512Hex,
-            },
-        },
+		{
+			name:    "parses a valid package specification without an integrity hash",
+			rawSpec: "yarn@4.1.0",
+			expectedSpec: manifest.PackageSpec{
+				Name:    "yarn",
+				Version: "4.1.0",
+				Hash:    "",
+			},
+		},
+		{
+			name:    "parses a valid package specification with sha1 integrity hash",
+			rawSpec: "pnpm@9.1.0+sha1." + sha1Hex,
+			expectedSpec: manifest.PackageSpec{
+				Name:    "pnpm",
+				Version: "9.1.0",
+				Hash:    "+sha1." + sha1Hex,
+			},
+		},
+		{
+			name:    "parses a valid package specification with sha224 integrity hash",
+			rawSpec: "yarn@4.1.0+sha224." + sha224Hex,
+			expectedSpec: manifest.PackageSpec{
+				Name:    "yarn",
+				Version: "4.1.0",
+				Hash:    "+sha224." + sha224Hex,
+			},
+		},
+		{
+			name:    "parses a valid package specification with sha256 integrity hash",
+			rawSpec: "pnpm@9.1.0+sha256." + sha256Hex,
+			expectedSpec: manifest.PackageSpec{
+				Name:    "pnpm",
+				Version: "9.1.0",
+				Hash:    "+sha256." + sha256Hex,
+			},
+		},
+		{
+			name:    "parses a valid package specification with sha384 integrity hash",
+			rawSpec: "npm@10.2.0+sha384." + sha384Hex,
+			expectedSpec: manifest.PackageSpec{
+				Name:    "npm",
+				Version: "10.2.0",
+				Hash:    "+sha384." + sha384Hex,
+			},
+		},
+		{
+			name:    "parses a valid package specification with sha512 integrity hash",
+			rawSpec: "pnpm@9.1.0+sha512." + sha512Hex,
+			expectedSpec: manifest.PackageSpec{
+				Name:    "pnpm",
+				Version: "9.1.0",
+				Hash:    "+sha512." + sha512Hex,
+			},
+		},
 	}
 
 	for _, testCase := range validCases {
@@ -138,71 +138,71 @@ func TestParsePackageSpec(t *testing.T) {
 		expectedErr error
 	}{
 		{
-            name:        "returns ErrInvalidPackageSpec on invalid format",
-            rawSpec:     "invalid-spec",
-            expectedErr: manifest.ErrInvalidPackageSpec,
-        },
-        {
-            name:        "returns ErrInvalidPackageSpec on empty hash delimiter",
-            rawSpec:     "pnpm@9.1.0+",
-            expectedErr: manifest.ErrInvalidPackageSpec,
-        },
-        {
-            name:        "returns ErrInvalidIntegrityHash when the algorithm is unsupported",
-            rawSpec:     "pnpm@9.1.0+md5." + strings.Repeat("a", 32),
-            expectedErr: manifest.ErrInvalidIntegrityHash,
-        },
-        {
-            name:        "returns ErrInvalidIntegrityHash when the hash lacks dot separator",
-            rawSpec:     "pnpm@9.1.0+sha512" + sha512Hex,
-            expectedErr: manifest.ErrInvalidIntegrityHash,
-        },
-        {
-            name:        "returns ErrInvalidIntegrityHash when the sha1 length is short",
-            rawSpec:     "pnpm@9.1.0+sha1." + strings.Repeat("a", 39),
-            expectedErr: manifest.ErrInvalidIntegrityHash,
-        },
-        {
-            name:        "returns ErrInvalidIntegrityHash when the sha1 length is long",
-            rawSpec:     "pnpm@9.1.0+sha1." + strings.Repeat("a", 41),
-            expectedErr: manifest.ErrInvalidIntegrityHash,
-        },
-        {
-            name:        "returns ErrInvalidIntegrityHash when the sha224 length is short",
-            rawSpec:     "yarn@4.1.0+sha224." + strings.Repeat("a", 55),
-            expectedErr: manifest.ErrInvalidIntegrityHash,
-        },
-        {
-            name:        "returns ErrInvalidIntegrityHash when the sha256 length is short",
-            rawSpec:     "pnpm@9.1.0+sha256." + strings.Repeat("a", 63),
-            expectedErr: manifest.ErrInvalidIntegrityHash,
-        },
-        {
-            name:        "returns ErrInvalidIntegrityHash when the sha384 length is short",
-            rawSpec:     "npm@10.2.0+sha384." + strings.Repeat("a", 95),
-            expectedErr: manifest.ErrInvalidIntegrityHash,
-        },
-        {
-            name:        "returns ErrInvalidIntegrityHash when the sha512 length is short",
-            rawSpec:     "pnpm@9.1.0+sha512." + strings.Repeat("a", 127),
-            expectedErr: manifest.ErrInvalidIntegrityHash,
-        },
-        {
-            name:        "returns ErrInvalidIntegrityHash when the sha512 length is long",
-            rawSpec:     "pnpm@9.1.0+sha512." + strings.Repeat("a", 129),
-            expectedErr: manifest.ErrInvalidIntegrityHash,
-        },
-        {
-            name:        "returns ErrInvalidIntegrityHash when the hash contains non-hexadecimal characters",
-            rawSpec:     "pnpm@9.1.0+sha1." + strings.Repeat("g", 40),
-            expectedErr: manifest.ErrInvalidIntegrityHash,
-        },
-        {
-            name:        "returns ErrInvalidIntegrityHash when the hash contains uppercase characters",
-            rawSpec:     "pnpm@9.1.0+sha1." + strings.Repeat("A", 40),
-            expectedErr: manifest.ErrInvalidIntegrityHash,
-        },     	  	
-   	}
+			name:        "returns ErrInvalidPackageSpec on invalid format",
+			rawSpec:     "invalid-spec",
+			expectedErr: manifest.ErrInvalidPackageSpec,
+		},
+		{
+			name:        "returns ErrInvalidPackageSpec on empty hash delimiter",
+			rawSpec:     "pnpm@9.1.0+",
+			expectedErr: manifest.ErrInvalidPackageSpec,
+		},
+		{
+			name:        "returns ErrInvalidIntegrityHash when the algorithm is unsupported",
+			rawSpec:     "pnpm@9.1.0+md5." + strings.Repeat("a", 32),
+			expectedErr: manifest.ErrInvalidIntegrityHash,
+		},
+		{
+			name:        "returns ErrInvalidIntegrityHash when the hash lacks dot separator",
+			rawSpec:     "pnpm@9.1.0+sha512" + sha512Hex,
+			expectedErr: manifest.ErrInvalidIntegrityHash,
+		},
+		{
+			name:        "returns ErrInvalidIntegrityHash when the sha1 length is short",
+			rawSpec:     "pnpm@9.1.0+sha1." + strings.Repeat("a", 39),
+			expectedErr: manifest.ErrInvalidIntegrityHash,
+		},
+		{
+			name:        "returns ErrInvalidIntegrityHash when the sha1 length is long",
+			rawSpec:     "pnpm@9.1.0+sha1." + strings.Repeat("a", 41),
+			expectedErr: manifest.ErrInvalidIntegrityHash,
+		},
+		{
+			name:        "returns ErrInvalidIntegrityHash when the sha224 length is short",
+			rawSpec:     "yarn@4.1.0+sha224." + strings.Repeat("a", 55),
+			expectedErr: manifest.ErrInvalidIntegrityHash,
+		},
+		{
+			name:        "returns ErrInvalidIntegrityHash when the sha256 length is short",
+			rawSpec:     "pnpm@9.1.0+sha256." + strings.Repeat("a", 63),
+			expectedErr: manifest.ErrInvalidIntegrityHash,
+		},
+		{
+			name:        "returns ErrInvalidIntegrityHash when the sha384 length is short",
+			rawSpec:     "npm@10.2.0+sha384." + strings.Repeat("a", 95),
+			expectedErr: manifest.ErrInvalidIntegrityHash,
+		},
+		{
+			name:        "returns ErrInvalidIntegrityHash when the sha512 length is short",
+			rawSpec:     "pnpm@9.1.0+sha512." + strings.Repeat("a", 127),
+			expectedErr: manifest.ErrInvalidIntegrityHash,
+		},
+		{
+			name:        "returns ErrInvalidIntegrityHash when the sha512 length is long",
+			rawSpec:     "pnpm@9.1.0+sha512." + strings.Repeat("a", 129),
+			expectedErr: manifest.ErrInvalidIntegrityHash,
+		},
+		{
+			name:        "returns ErrInvalidIntegrityHash when the hash contains non-hexadecimal characters",
+			rawSpec:     "pnpm@9.1.0+sha1." + strings.Repeat("g", 40),
+			expectedErr: manifest.ErrInvalidIntegrityHash,
+		},
+		{
+			name:        "returns ErrInvalidIntegrityHash when the hash contains uppercase characters",
+			rawSpec:     "pnpm@9.1.0+sha1." + strings.Repeat("A", 40),
+			expectedErr: manifest.ErrInvalidIntegrityHash,
+		},
+	}
 
 	for _, testCase := range invalidCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -409,7 +409,7 @@ func TestWritePackageSpec(t *testing.T) {
 	t.Run("leaves file untouched when spec already matches", func(t *testing.T) {
 		validHash := "+sha512." + strings.Repeat("a", 128)
 		manifestPath := filepath.Join(t.TempDir(), "package.json")
-		rawContent := `{"name": "test-pkg", "packageManager":"pnpm@9.1.0`+validHash+`"}`
+		rawContent := `{"name": "test-pkg", "packageManager":"pnpm@9.1.0` + validHash + `"}`
 		err := os.WriteFile(manifestPath, []byte(rawContent), 0600)
 		if err != nil {
 			t.Fatalf("failed to write test file: %v", err)
@@ -448,7 +448,7 @@ func TestWritePackageSpec(t *testing.T) {
 	t.Run("updates file when spec differs", func(t *testing.T) {
 		manifestPath := filepath.Join(t.TempDir(), "package.json")
 		initialHash := "+sha512." + strings.Repeat("a", 128)
-		rawContent := `{"name": "test-pkg", "packageManager":"pnpm@9.1.0`+initialHash+`"}`
+		rawContent := `{"name": "test-pkg", "packageManager":"pnpm@9.1.0` + initialHash + `"}`
 		err := os.WriteFile(manifestPath, []byte(rawContent), 0600)
 		if err != nil {
 			t.Fatalf("failed to write test file: %v", err)

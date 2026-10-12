@@ -72,7 +72,7 @@ func NewUpCommand() *cobra.Command {
 				return resolver.ErrVersionNotFound
 			}
 
-			integrityHash, err := registry.ConvertIntegrity(packageVersion.Dist.Integrity)
+			integrityHash, err := registry.ConvertIntegrity(packageVersion.Dist)
 			if err != nil {
 				return err
 			}
