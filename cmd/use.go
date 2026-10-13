@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/pkcarreno/cpk/internal/manifest"
 	"github.com/pkcarreno/cpk/internal/registry"
 	"github.com/pkcarreno/cpk/internal/resolver"
+	"github.com/pkcarreno/cpk/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -41,10 +43,15 @@ func NewUseCommand() *cobra.Command {
 
 			packageName := resolver.ResolvePackageName(packageManager, targetVersion)
 
+			uiInstance := ui.FromContext(cmd.Context())
+			uiInstance.StartSpinner(fmt.Sprintf("Resolving %s...", packageName))
+
 			metadata, err := registry.FetchPackageMetadata(cmd.Context(), nil, registryURL, packageName)
 			if err != nil {
+				uiInstance.StopSpinner()
 				return err
 			}
+			uiInstance.StopSpinner()
 
 			resolvedVersion, err := resolver.ResolveVersion(metadata, targetVersion)
 			if err != nil {
@@ -67,9 +74,13 @@ func NewUseCommand() *cobra.Command {
 				Hash:    integrityHash,
 			}
 
-			_, err = manifest.WritePackageSpec("./package.json", targetSpec)
+			isModified, err := manifest.WritePackageSpec("./package.json", targetSpec)
 			if err != nil {
 				return err
+			}
+
+			if isModified {
+				uiInstance.Success("Set %s@%s in package.json", targetSpec.Name, targetSpec.Version)
 			}
 
 			return nil

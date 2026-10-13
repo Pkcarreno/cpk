@@ -2,7 +2,9 @@ package cmd_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,6 +14,7 @@ import (
 	"github.com/pkcarreno/cpk/cmd"
 	"github.com/pkcarreno/cpk/internal/manifest"
 	"github.com/pkcarreno/cpk/internal/registry"
+	"github.com/pkcarreno/cpk/internal/ui"
 )
 
 func TestNewUseCommand(t *testing.T) {
@@ -132,22 +135,33 @@ func TestNewUseCommand(t *testing.T) {
 
 			t.Setenv("NPM_CONFIG_REGISTRY", mockServer.URL)
 
-			var output bytes.Buffer
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+
+			uiInstance := ui.New(ui.Config{
+				Out:     &stdout,
+				Err:     &stderr,
+				NoColor: true,
+			})
 
 			useCommand := cmd.NewUseCommand()
 			useCommand.SetArgs(testCase.arguments)
-			useCommand.SetOut(&output)
-			useCommand.SetErr(&output)
+			useCommand.SetOut(&stdout)
+			useCommand.SetErr(&stderr)
+			useCommand.SetContext(ui.WithContext(context.Background(), uiInstance))
 
 			err = useCommand.Execute()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			expectedOutput := ""
+			if stdout.String() != "" {
+				t.Fatalf("expected stdout to be empty, got: %v", stdout.String())
+			}
 
-			if output.String() != expectedOutput {
-				t.Fatalf("output does not match expected output, expected: %q, got: %v", expectedOutput, output)
+			expectedStderr := fmt.Sprintf("✔ Set %s@%s in package.json\n", testCase.expectedPackageManager, testCase.expectedVersion)
+			if stderr.String() != expectedStderr {
+				t.Fatalf("stderr does not match expected output, expected %q, got: %q", expectedStderr, stderr.String())
 			}
 
 			updatedPackageSpec, err := manifest.ReadPackageSpec(manifestPath)
@@ -194,12 +208,20 @@ func TestNewUseCommand(t *testing.T) {
 
 		t.Setenv("NPM_CONFIG_REGISTRY", mockServer.URL)
 
-		var output bytes.Buffer
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+
+		uiInstance := ui.New(ui.Config{
+			Out:     &stdout,
+			Err:     &stderr,
+			NoColor: true,
+		})
 
 		useCommand := cmd.NewUseCommand()
 		useCommand.SetArgs([]string{"pnpm@9.5.0"})
-		useCommand.SetOut(&output)
-		useCommand.SetErr(&output)
+		useCommand.SetOut(&stdout)
+		useCommand.SetErr(&stderr)
+		useCommand.SetContext(ui.WithContext(context.Background(), uiInstance))
 
 		beforeFileInfo, err := os.Stat(manifestPath)
 		if err != nil {
@@ -220,10 +242,12 @@ func TestNewUseCommand(t *testing.T) {
 			t.Fatalf("expected the file modification time to remain unchanged")
 		}
 
-		expectedOutput := ""
+		if stdout.String() != "" {
+			t.Fatalf("expected stdout to be empty, got: %q", stdout.String())
+		}
 
-		if output.String() != expectedOutput {
-			t.Fatalf("output does not match expected output, expected: %q, got: %v", expectedOutput, output)
+		if stderr.String() != "" {
+			t.Fatalf("expected stderr to be empty on idempotent run, got: %q", stderr.String())
 		}
 
 		updatedPackageSpec, err := manifest.ReadPackageSpec(manifestPath)
