@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/pkcarreno/cpk/cmd"
 	"github.com/pkcarreno/cpk/internal/manifest"
+	"github.com/pkcarreno/cpk/internal/ui"
 )
 
 func TestNewUpCommand(t *testing.T) {
@@ -163,12 +165,20 @@ func TestNewUpCommand(t *testing.T) {
 
 			t.Setenv("NPM_CONFIG_REGISTRY", mockServer.URL)
 
-			var output bytes.Buffer
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+
+			uiInstance := ui.New(ui.Config{
+				Out:     &stdout,
+				Err:     &stderr,
+				NoColor: true,
+			})
 
 			upCommand := cmd.NewUpCommand()
 			upCommand.SetArgs(testCase.arguments)
-			upCommand.SetOut(&output)
-			upCommand.SetErr(&output)
+			upCommand.SetOut(&stdout)
+			upCommand.SetErr(&stderr)
+			upCommand.SetContext(ui.WithContext(context.Background(), uiInstance))
 
 			err = upCommand.Execute()
 			if err != nil {
@@ -180,10 +190,14 @@ func TestNewUpCommand(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			expectedOutput := fmt.Sprintf("Updated %s from %s to %s\n", initialSpec.Name, initialSpec.Version, testCase.expectedVersion)
+			if stdout.String() != "" {
+				t.Fatalf("expected stdout to be empty, got: %q", stdout.String())
+			}
 
-			if output.String() != expectedOutput {
-				t.Fatalf("output does not match expected output, expected: %q, got: %v", expectedOutput, output)
+			expectedStderr := fmt.Sprintf("✔ Updated %s from %s to %s in package.json\n", initialSpec.Name, initialSpec.Version, testCase.expectedVersion)
+
+			if stderr.String() != expectedStderr {
+				t.Fatalf("stderr does not match expected output, expected: %q, got: %q", expectedStderr, stderr.String())
 			}
 
 			updatedPackageSpec, err := manifest.ReadPackageSpec(manifestPath)
@@ -230,12 +244,20 @@ func TestNewUpCommand(t *testing.T) {
 
 		t.Setenv("NPM_CONFIG_REGISTRY", mockServer.URL)
 
-		var output bytes.Buffer
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+
+		uiInstance := ui.New(ui.Config{
+			Out:     &stdout,
+			Err:     &stderr,
+			NoColor: true,
+		})
 
 		upCommand := cmd.NewUpCommand()
 		upCommand.SetArgs([]string{"9.5.0"})
-		upCommand.SetOut(&output)
-		upCommand.SetErr(&output)
+		upCommand.SetOut(&stdout)
+		upCommand.SetErr(&stderr)
+		upCommand.SetContext(ui.WithContext(context.Background(), uiInstance))
 
 		beforeFileInfo, err := os.Stat(manifestPath)
 		if err != nil {
@@ -256,10 +278,14 @@ func TestNewUpCommand(t *testing.T) {
 			t.Fatalf("expected the file modification time to remain unchanged")
 		}
 
-		expectedOutput := "pnpm is already up to date (9.5.0)\n"
+		if stdout.String() != "" {
+			t.Fatalf("expected stdout to be empty, got: %q", stdout.String())
+		}
 
-		if output.String() != expectedOutput {
-			t.Fatalf("output does not match expected output, expected: %q, got: %v", expectedOutput, output)
+		expectedStderr := fmt.Sprintf("ℹ %s is already up to date (%s)\n", "pnpm", "9.5.0")
+
+		if stderr.String() != expectedStderr {
+			t.Fatalf("stderr does not match expected output, expected: %q, got: %q", expectedStderr, stderr.String())
 		}
 
 		updatedPackageSpec, err := manifest.ReadPackageSpec(manifestPath)
@@ -349,12 +375,20 @@ func TestNewUpCommand(t *testing.T) {
 
 		t.Setenv("NPM_CONFIG_REGISTRY", mockServer.URL)
 
-		var output bytes.Buffer
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+
+		uiInstance := ui.New(ui.Config{
+			Out:     &stdout,
+			Err:     &stderr,
+			NoColor: true,
+		})
 
 		upCommand := cmd.NewUpCommand()
 		upCommand.SetArgs([]string{})
-		upCommand.SetOut(&output)
-		upCommand.SetErr(&output)
+		upCommand.SetOut(&stdout)
+		upCommand.SetErr(&stderr)
+		upCommand.SetContext(ui.WithContext(context.Background(), uiInstance))
 
 		beforeFileInfo, err := os.Stat(manifestPath)
 		if err != nil {
@@ -375,9 +409,14 @@ func TestNewUpCommand(t *testing.T) {
 			t.Fatalf("expected the file modification time to remain unchanged")
 		}
 
-		expectedOutput := "yarn is already up to date (1.22.22)\n"
-		if output.String() != expectedOutput {
-			t.Fatalf("output does not match expected output, expected: %q, got: %v", expectedOutput, output)
+		if stdout.String() != "" {
+			t.Fatalf("expected stdout to be empty, got: %q", stdout.String())
+		}
+
+		expectedStderr := fmt.Sprintf("ℹ %s is already up to date (%s)\n", "yarn", "1.22.22")
+
+		if stderr.String() != expectedStderr {
+			t.Fatalf("stderr does not match expected output, expected: %q, got: %q", expectedStderr, stderr.String())
 		}
 	})
 }

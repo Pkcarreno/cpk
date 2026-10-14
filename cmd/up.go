@@ -7,6 +7,7 @@ import (
 	"github.com/pkcarreno/cpk/internal/manifest"
 	"github.com/pkcarreno/cpk/internal/registry"
 	"github.com/pkcarreno/cpk/internal/resolver"
+	"github.com/pkcarreno/cpk/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -52,10 +53,15 @@ func NewUpCommand() *cobra.Command {
 
 			packageName := resolver.ResolvePackageName(packageSpec.Name, targetVersion)
 
+			uiInstance := ui.FromContext(cmd.Context())
+			uiInstance.StartSpinner(fmt.Sprintf("Resolving %s...", packageName))
+
 			metadata, err := registry.FetchPackageMetadata(cmd.Context(), nil, registryURL, packageName)
 			if err != nil {
+				uiInstance.StopSpinner()
 				return err
 			}
+			uiInstance.StopSpinner()
 
 			resolvedVersion, err := resolver.ResolveVersion(metadata, targetVersion)
 			if err != nil {
@@ -93,9 +99,9 @@ func NewUpCommand() *cobra.Command {
 			}
 
 			if isModified {
-				cmd.Printf("Updated %s from %s to %s\n", packageSpec.Name, packageSpec.Version, resolvedVersion)
+				uiInstance.Success("Updated %s from %s to %s in package.json", packageSpec.Name, packageSpec.Version, resolvedVersion)
 			} else {
-				cmd.Printf("%s is already up to date (%s)\n", packageSpec.Name, packageSpec.Version)
+				uiInstance.Info("%s is already up to date (%s)", packageSpec.Name, packageSpec.Version)
 			}
 
 			return nil
