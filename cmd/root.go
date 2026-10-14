@@ -47,6 +47,7 @@ func NewRootCommand() *cobra.Command {
 	rootCommand.AddCommand(NewCurrentCommand())
 	rootCommand.AddCommand(NewUseCommand())
 	rootCommand.AddCommand(NewUpCommand())
+	rootCommand.AddCommand(NewCheckCommand())
 
 	return rootCommand
 }
