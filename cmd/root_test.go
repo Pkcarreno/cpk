@@ -111,11 +111,3 @@ func TestNewRootCommand(t *testing.T) {
 		}
 	})
 }
-
-func TestExecute(t *testing.T) {
-	t.Run("execute the root command", func(t *testing.T) {
-		if executionError := cmd.Execute(); executionError != nil {
-			t.Fatalf("unexpected execution error %v", executionError)
-		}
-	})
-}

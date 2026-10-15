@@ -3,10 +3,15 @@ package ui_test
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/pkcarreno/cpk/internal/manifest"
+	"github.com/pkcarreno/cpk/internal/registry"
+	"github.com/pkcarreno/cpk/internal/resolver"
 	"github.com/pkcarreno/cpk/internal/ui"
 )
 
@@ -206,4 +211,223 @@ func TestEnvironmentDetection(t *testing.T) {
 			t.Fatal("expected IsCI to report true when CI is set")
 		}
 	})
+}
+
+func TestFormatError(t *testing.T) {
+	t.Run("formats actionable error into error cause and fix fields", func(t *testing.T) {
+		customErr := &ui.ActionableError{
+			Summary: "sample summary",
+			Cause:   "sample cause",
+			Fix:     "sample fix",
+		}
+
+		result := ui.FormatError(customErr, false, true)
+
+		if !strings.Contains(result, "Error: sample summary\n") {
+			t.Fatalf("expected result to contain Error section, got: %q", result)
+		}
+		if !strings.Contains(result, "Cause: sample cause\n") {
+			t.Fatalf("expected result to contain Cause section, got: %q", result)
+		}
+		if !strings.Contains(result, "Fix:   sample fix\n") {
+			t.Fatalf("expected result to contain Fix section, got: %q", result)
+		}
+	})
+
+	t.Run("formats actionable error with ansi colors when noColor is false", func(t *testing.T) {
+		customErr := &ui.ActionableError{
+			Summary: "sample summary",
+			Cause:   "sample cause",
+			Fix:     "sample fix",
+		}
+
+		result := ui.FormatError(customErr, false, false)
+
+		if !strings.Contains(result, "\033[31mError:\033[0m sample summary\n") {
+			t.Fatalf("expected result to contain colored Error section, got: %q", result)
+		}
+		if !strings.Contains(result, "\033[33mCause:\033[0m sample cause\n") {
+			t.Fatalf("expected result to contain colored Cause section, got: %q", result)
+		}
+		if !strings.Contains(result, "\033[36mFix:\033[0m   sample fix\n") {
+			t.Fatalf("expected result to contain colored Fix section, got: %q", result)
+		}
+	})
+
+	t.Run("dumps full error details when verbose is true", func(t *testing.T) {
+		underlyingErr := errors.New("dial tcp 127.0.0.1:443: connect: connection refused")
+		customErr := &ui.ActionableError{
+			Summary: "sample summary",
+			Cause:   "sample cause",
+			Fix:     "sample fix",
+			Err:     underlyingErr,
+		}
+
+		result := ui.FormatError(customErr, true, true)
+
+		if !strings.Contains(result, "Details:") {
+			t.Fatalf("expected result to contain Details section, got: %q", result)
+		}
+		if !strings.Contains(result, "dial tcp 127.0.0.1:443: connect: connection refused") {
+			t.Fatalf("expected result to contain underlying error details, got: %q", result)
+		}
+	})
+
+	t.Run("omits error details when verbose is false", func(t *testing.T) {
+		underlyingErr := errors.New("dial tcp 127.0.0.1:443: connect: connection refused")
+		customErr := &ui.ActionableError{
+			Summary: "sample summary",
+			Cause:   "sample cause",
+			Fix:     "sample fix",
+			Err:     underlyingErr,
+		}
+
+		result := ui.FormatError(customErr, false, true)
+
+		if strings.Contains(result, "Details:") {
+			t.Fatalf("expected result not to contain Details section, got: %q", result)
+		}
+		if strings.Contains(result, "dial tcp 127.0.0.1:443: connect: connection refused") {
+			t.Fatalf("expected result not to contain underlying error details, got: %q", result)
+		}
+	})
+}
+
+func TestFormatError_DomainErrors(t *testing.T) {
+	testCases := []struct {
+		name            string
+		err             error
+		expectedSummary string
+		expectedCause   string
+		expectedFix     string
+	}{
+		{
+			name:            "manifest not found",
+			err:             manifest.ErrManifestNotFound,
+			expectedSummary: "package.json file not found",
+			expectedCause:   "The package.json file does not exist in the current directory.",
+			expectedFix:     "Run \"npm init -y\" to create a manifest, or go to a Node.js project directory.",
+		},
+		{
+			name:            "missing package manager",
+			err:             manifest.ErrMissingPackageManager,
+			expectedSummary: "Missing packageManager field",
+			expectedCause:   "The package.json file does not contain a packageManager field.",
+			expectedFix:     "Run \"cpk use <package-manager>\" to set a package manager.",
+		},
+		{
+			name:            "invalid package spec",
+			err:             manifest.ErrInvalidPackageSpec,
+			expectedSummary: "Invalid package specification",
+			expectedCause:   "The packageManager field does not match the format name@version[+hash].",
+			expectedFix:     "Run \"cpk use <package-manager>@<version>\" to set a valid package specification.",
+		},
+		{
+			name:            "invalid manifest syntax",
+			err:             manifest.ErrInvalidManifest,
+			expectedSummary: "Invalid package.json manifest",
+			expectedCause:   "The package.json file contains invalid JSON syntax.",
+			expectedFix:     "Correct the JSON syntax errors in the package.json file.",
+		},
+		{
+			name:            "package manager already exists",
+			err:             manifest.ErrPackageManagerExists,
+			expectedSummary: "packageManager field already exists",
+			expectedCause:   "The package.json file already contains a packageManager field.",
+			expectedFix:     "Run \"cpk use <package-manager>\" to update the existing packageManager field.",
+		},
+		{
+			name:            "invalid integrity hash",
+			err:             manifest.ErrInvalidIntegrityHash,
+			expectedSummary: "Invalid integrity hash",
+			expectedCause:   "The integrity hash format or digest length does not match supported algorithms.",
+			expectedFix:     "Run \"cpk use <package-manager>\" to get a fresh hash from the registry.",
+		},
+		{
+			name:            "unsupported package manager",
+			err:             registry.ErrUnsupportedPackageManager,
+			expectedSummary: "Unsupported package manager",
+			expectedCause:   "cpk only supports pnpm, yarn, and npm.",
+			expectedFix:     "Run \"cpk use <pnpm|yarn|npm>\" instead.",
+		},
+		{
+			name:            "unsupported algorithm",
+			err:             registry.ErrUnsupportedAlgorithm,
+			expectedSummary: "Unsupported integrity algorithm",
+			expectedCause:   "The registry integrity hash uses an unsupported algorithm.",
+			expectedFix:     "Use a version with sha512, sha384, sha256, sha224, or sha1 hashes.",
+		},
+		{
+			name:            "missing integrity in registry",
+			err:             registry.ErrMissingIntegrity,
+			expectedSummary: "Missing integrity hash in registry",
+			expectedCause:   "The package metadata does not contain an integrity hash or shasum.",
+			expectedFix:     "Select a package version that includes published integrity metadata.",
+		},
+		{
+			name:            "package not found in registry",
+			err:             registry.ErrPackageNotFound,
+			expectedSummary: "Package not found in registry",
+			expectedCause:   "The package does not exist in the configured npm registry.",
+			expectedFix:     "Make sure the package name and registry URL are correct.",
+		},
+		{
+			name:            "registry request failed",
+			err:             registry.ErrRegistryRequestFailed,
+			expectedSummary: "Registry request failed",
+			expectedCause:   "The registry returned an error or the network request failed.",
+			expectedFix:     "Check your network connection and registry URL.",
+		},
+		{
+			name:            "version not found in registry",
+			err:             resolver.ErrVersionNotFound,
+			expectedSummary: "Version not found in registry",
+			expectedCause:   "The registry does not have a release matching the target version.",
+			expectedFix:     "Examine the package versions on npmjs.com or run \"cpk check\".",
+		},
+		{
+			name:            "integrity mismatch",
+			err:             errors.New("the integrity hash does not match the registry metadata"),
+			expectedSummary: "Integrity hash mismatch",
+			expectedCause:   "The integrity hash does not match the published registry metadata.",
+			expectedFix:     "Run \"cpk use <package-manager>@<version>\" to update the manifest with the valid hash.",
+		},
+		{
+			name:            "outdated package manager",
+			err:             errors.New("the package manager is outdated"),
+			expectedSummary: "Package manager is outdated",
+			expectedCause:   "A newer version of the package manager exists in the registry.",
+			expectedFix:     "Run \"cpk up\" to update to the latest version.",
+		},
+		{
+			name:            "downgrade rejected",
+			err:             errors.New("cannot downgrade with up: run 'cpk use' instead"),
+			expectedSummary: "Downgrade rejected by up command",
+			expectedCause:   "The target version is lower than the active pinned version.",
+			expectedFix:     "Run \"cpk use <package-manager>@<version>\" to force a downgrade.",
+		},
+		{
+			name:            "wrapped domain error",
+			err:             fmt.Errorf("reading manifest: %w", manifest.ErrMissingPackageManager),
+			expectedSummary: "Missing packageManager field",
+			expectedCause:   "The package.json file does not contain a packageManager field.",
+			expectedFix:     "Run \"cpk use <package-manager>\" to set a package manager.",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			result := ui.FormatError(testCase.err, false, true)
+
+			if !strings.Contains(result, testCase.expectedSummary) {
+				t.Fatalf("expected result to contain colored Error section, got: %q", result)
+			}
+			if !strings.Contains(result, testCase.expectedCause) {
+				t.Fatalf("expected result to contain colored Cause section, got: %q", result)
+			}
+			if !strings.Contains(result, testCase.expectedFix) {
+				t.Fatalf("expected result to contain colored Fix section, got: %q", result)
+			}
+		})
+	}
 }

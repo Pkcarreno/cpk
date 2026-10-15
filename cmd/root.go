@@ -51,7 +51,3 @@ func NewRootCommand() *cobra.Command {
 
 	return rootCommand
 }
-
-func Execute() error {
-	return NewRootCommand().Execute()
-}
