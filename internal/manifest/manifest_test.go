@@ -533,3 +533,98 @@ func TestWritePackageSpec(t *testing.T) {
 		}
 	})
 }
+
+func TestParsePackageSpecAgnostic(t *testing.T) {
+	t.Run("parses specification with corrupted hash without validation error", func(t *testing.T) {
+		spec, err := manifest.ParsePackageSpecAgnostic("pnpm@9.5.0+invalid-hash")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if spec.Name != "pnpm" || spec.Version != "9.5.0" || spec.Hash != "+invalid-hash" {
+			t.Fatalf("unexpected parsed spec: %+v", spec)
+		}
+	})
+
+	t.Run("parses specification without hash", func(t *testing.T) {
+		spec, err := manifest.ParsePackageSpecAgnostic("yarn@4.1.0")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if spec.Name != "yarn" || spec.Version != "4.1.0" || spec.Hash != "" {
+			t.Fatalf("unexpected parsed spec: %+v", spec)
+		}
+	})
+
+	t.Run("returns ErrInvalidPackageSpec on invalid format", func(t *testing.T) {
+		invalidCases := []string{
+			"invalid-spec",
+			"pnpm@",
+			"pnpm@9.1.0+",
+			"",
+		}
+
+		for _, rawSpec := range invalidCases {
+			_, err := manifest.ParsePackageSpecAgnostic(rawSpec)
+			if !errors.Is(err, manifest.ErrInvalidPackageSpec) {
+				t.Fatalf("expected ErrInvalidPackageSpec for %q, got: %v", rawSpec, err)
+			}
+		}
+	})
+}
+
+func TestReadPackageSpecAgnostic(t *testing.T) {
+	t.Run("reads package specification with corrupted hash successfully", func(t *testing.T) {
+		temporalDirectory := t.TempDir()
+		manifestPath := filepath.Join(temporalDirectory, "package.json")
+		err := os.WriteFile(manifestPath, []byte(`{"name": "test-pkg", "packageManager": "pnpm@9.5.0+corrupted"}`), 0600)
+		if err != nil {
+			t.Fatalf("failed to write test file: %v", err)
+		}
+
+		spec, err := manifest.ReadPackageSpecAgnostic(manifestPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if spec.Name != "pnpm" || spec.Version != "9.5.0" || spec.Hash != "+corrupted" {
+			t.Fatalf("unexpected parsed spec: %+v", spec)
+		}
+	})
+
+	t.Run("returns ErrManifestNotFound when file does not exist", func(t *testing.T) {
+		temporalDirectory := t.TempDir()
+		manifestPath := filepath.Join(temporalDirectory, "package.json")
+
+		_, err := manifest.ReadPackageSpecAgnostic(manifestPath)
+		if !errors.Is(err, manifest.ErrManifestNotFound) {
+			t.Fatalf("expected ErrManifestNotFound, got: %v", err)
+		}
+	})
+
+	t.Run("returns ErrMissingPackageManager when key is missing", func(t *testing.T) {
+		temporalDirectory := t.TempDir()
+		manifestPath := filepath.Join(temporalDirectory, "package.json")
+		err := os.WriteFile(manifestPath, []byte(`{"name": "test-pkg"}`), 0600)
+		if err != nil {
+			t.Fatalf("failed to write test file: %v", err)
+		}
+
+		_, err = manifest.ReadPackageSpecAgnostic(manifestPath)
+		if !errors.Is(err, manifest.ErrMissingPackageManager) {
+			t.Fatalf("expected ErrMissingPackageManager, got: %v", err)
+		}
+	})
+
+	t.Run("returns ErrInvalidManifest on invalid JSON", func(t *testing.T) {
+		temporalDirectory := t.TempDir()
+		manifestPath := filepath.Join(temporalDirectory, "package.json")
+		err := os.WriteFile(manifestPath, []byte(`{invalid-json}`), 0600)
+		if err != nil {
+			t.Fatalf("failed to write test file: %v", err)
+		}
+
+		_, err = manifest.ReadPackageSpecAgnostic(manifestPath)
+		if !errors.Is(err, manifest.ErrInvalidManifest) {
+			t.Fatalf("expected ErrInvalidManifest, got: %v", err)
+		}
+	})
+}

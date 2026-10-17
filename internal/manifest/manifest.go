@@ -68,6 +68,28 @@ func ParsePackageSpec(raw string) (PackageSpec, error) {
 	}, nil
 }
 
+func ParsePackageSpecAgnostic(raw string) (PackageSpec, error) {
+	name, rest, hasAt := strings.Cut(raw, "@")
+	if !hasAt || name == "" || rest == "" {
+		return PackageSpec{}, ErrInvalidPackageSpec
+	}
+
+	version, hash, hasHash := strings.Cut(rest, "+")
+	if version == "" || (hasHash && hash == "") {
+		return PackageSpec{}, ErrInvalidPackageSpec
+	}
+	var formattedHash string
+	if hasHash {
+		formattedHash = "+" + hash
+	}
+
+	return PackageSpec{
+		Name:    name,
+		Version: version,
+		Hash:    formattedHash,
+	}, nil
+}
+
 func ReadPackageSpec(manifestPath string) (PackageSpec, error) {
 	manifestBytes, err := Read(manifestPath)
 	if err != nil {
@@ -92,6 +114,37 @@ func ReadPackageSpec(manifestPath string) (PackageSpec, error) {
 	}
 
 	spec, err := ParsePackageSpec(*payload.PackageManager)
+	if err != nil {
+		return PackageSpec{}, err
+	}
+
+	return spec, nil
+}
+
+func ReadPackageSpecAgnostic(manifestPath string) (PackageSpec, error) {
+	manifestBytes, err := Read(manifestPath)
+	if err != nil {
+		return PackageSpec{}, err
+	}
+
+	if !json.Valid(manifestBytes) {
+		return PackageSpec{}, ErrInvalidManifest
+	}
+
+	var payload struct {
+		PackageManager *string `json:"packageManager"`
+	}
+
+	err = json.Unmarshal(manifestBytes, &payload)
+	if err != nil {
+		return PackageSpec{}, err
+	}
+
+	if payload.PackageManager == nil {
+		return PackageSpec{}, ErrMissingPackageManager
+	}
+
+	spec, err := ParsePackageSpecAgnostic(*payload.PackageManager)
 	if err != nil {
 		return PackageSpec{}, err
 	}
