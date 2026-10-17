@@ -13,7 +13,6 @@ import (
 
 var (
 	ErrIntegrityMismatch = errors.New("the integrity hash does not match the registry metadata")
-	ErrOutdatedPackage   = errors.New("the package manager is outdated")
 )
 
 func NewCheckCommand() *cobra.Command {

@@ -1,0 +1,91 @@
+package cmd
+
+import (
+	"errors"
+	"fmt"
+
+	"github.com/pkcarreno/cpk/internal/manifest"
+	"github.com/pkcarreno/cpk/internal/registry"
+	"github.com/pkcarreno/cpk/internal/resolver"
+	"github.com/pkcarreno/cpk/internal/ui"
+	"github.com/spf13/cobra"
+)
+
+var (
+	ErrOutdatedPackage   = errors.New("the package manager is outdated")
+)
+
+func NewOutdatedCommand() *cobra.Command {
+	outdatedCommand := &cobra.Command{
+		Use:   "outdated",
+		Short: "Check package manager updates against the registry",
+		SilenceUsage: true,
+		SilenceErrors: true,
+		RunE:  func(cmd *cobra.Command, args []string) error {
+			packageSpec, err := manifest.ReadPackageSpecAgnostic("./package.json")
+			if err != nil {
+				return err
+			}
+
+			err = registry.ValidatePackageManager(packageSpec.Name)
+			if err != nil {
+				return err
+			}
+
+			var customRegistry string
+			if registryFlag := cmd.Flags().Lookup("registry"); registryFlag != nil {
+				customRegistry = registryFlag.Value.String()
+			}
+
+			registryURL := registry.ResolveRegistryURL(customRegistry)
+
+			targetVersion := "latest"
+			if packageSpec.Name == "yarn" && resolver.ResolvePackageName(packageSpec.Name, packageSpec.Version) == "yarn" {
+				targetVersion = "1"
+			}
+
+			packageName := resolver.ResolvePackageName(packageSpec.Name, targetVersion)
+
+			uiInstance := ui.FromContext(cmd.Context())
+			uiInstance.StartSpinner(fmt.Sprintf("Resolving %s...", packageName))
+
+			metadata, err := registry.FetchPackageMetadata(cmd.Context(), nil, registryURL, packageName)
+			if err != nil {
+				uiInstance.StopSpinner()
+				return err
+			}
+			uiInstance.StopSpinner()
+
+			resolvedVersion, err := resolver.ResolveVersion(metadata, targetVersion)
+			if err != nil {
+				return err
+			}
+
+			_, hasVersionData := metadata.Versions[packageSpec.Version]
+			if !hasVersionData {
+				return resolver.ErrVersionNotFound
+			}
+
+			isOutdated, err := resolver.IsLowerVersion(packageSpec.Version, resolvedVersion)
+			if err != nil {
+				return err
+			}
+
+			if isOutdated {
+				uiInstance.Warn("Update available for %s: %s -> %s", packageSpec.Name, packageSpec.Version, resolvedVersion)
+				if isFailOnOutdatedFlag, _ := cmd.Flags().GetBool("fail-on-outdated"); isFailOnOutdatedFlag {
+					return ErrOutdatedPackage
+				}
+			} else {
+				uiInstance.Info("%s is already up to date (%s)", packageSpec.Name, packageSpec.Version)
+			}
+
+			return nil
+		},
+	}
+
+	
+	outdatedCommand.Flags().Bool("fail-on-outdated", false, "Exit with a non-zero code if the package manager is outdated")
+	
+	return outdatedCommand
+}
