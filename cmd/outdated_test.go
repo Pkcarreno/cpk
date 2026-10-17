@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pkcarreno/cpk/cmd"
@@ -82,97 +82,97 @@ func TestNewOutdatedCommand(t *testing.T) {
 		}
 	})
 
-    testCases := []struct {
-        name           string
-        specString     string
-        arguments      []string
-        expectedStderr string
-        expectedErr    error
-    }{
-        {
-            name:           "reports active package manager is up to date without hash",
-            specString:     "pnpm@9.5.0",
-            arguments:      []string{},
-            expectedStderr: "ℹ pnpm is already up to date (9.5.0)\n",
-            expectedErr:    nil,
-        },
-        {
-            name:           "reports active package manager is up to date with valid sha512 hash",
-            specString:     "pnpm@9.5.0+sha512." + strings.Repeat("c", 128),
-            arguments:      []string{},
-            expectedStderr: "ℹ pnpm is already up to date (9.5.0)\n",
-            expectedErr:    nil,
-        },
-        {
-            name:           "reports active package manager is up to date with corrupted hash",
-            specString:     "pnpm@9.5.0+corrupted_hash",
-            arguments:      []string{},
-            expectedStderr: "ℹ pnpm is already up to date (9.5.0)\n",
-            expectedErr:    nil,
-        },
-        {
-            name:           "reports Yarn Classic is up to date on 1.x line",
-            specString:     "yarn@1.22.22+sha1." + strings.Repeat("a", 40),
-            arguments:      []string{},
-            expectedStderr: "ℹ yarn is already up to date (1.22.22)\n",
-            expectedErr:    nil,
-        },
-        {
-            name:           "reports Yarn Berry is up to date",
-            specString:     "yarn@4.18.0",
-            arguments:      []string{},
-            expectedStderr: "ℹ yarn is already up to date (4.18.0)\n",
-            expectedErr:    nil,
-        },
-        {
-            name:           "reports update available when version is lower with valid hash",
-            specString:     "pnpm@9.1.0+sha256." + strings.Repeat("b", 64),
-            arguments:      []string{},
-            expectedStderr: "! Update available for pnpm: 9.1.0 -> 9.5.0\n",
-            expectedErr:    nil,
-        },
-        {
-            name:           "reports update available when version is lower with corrupted hash",
-            specString:     "pnpm@9.1.0+sha512.invalid",
-            arguments:      []string{},
-            expectedStderr: "! Update available for pnpm: 9.1.0 -> 9.5.0\n",
-            expectedErr:    nil,
-        },
-        {
-            name:           "reports Yarn Classic update available within 1.x",
-            specString:     "yarn@1.22.19",
-            arguments:      []string{},
-            expectedStderr: "! Update available for yarn: 1.22.19 -> 1.22.22\n",
-            expectedErr:    nil,
-        },
-        {
-            name:           "reports Yarn Berry update available",
-            specString:     "yarn@4.1.0",
-            arguments:      []string{},
-            expectedStderr: "! Update available for yarn: 4.1.0 -> 4.18.0\n",
-            expectedErr:    nil,
-        },
-        {
-            name:           "fails when update is available and fail-on-outdated flag is set",
-            specString:     "pnpm@9.1.0",
-            arguments:      []string{"--fail-on-outdated"},
-            expectedStderr: "! Update available for pnpm: 9.1.0 -> 9.5.0\n",
-            expectedErr:    cmd.ErrOutdatedPackage,
-        },
-        {
-            name:           "succeeds when up to date and fail-on-outdated flag is set",
-            specString:     "pnpm@9.5.0",
-            arguments:      []string{"--fail-on-outdated"},
-            expectedStderr: "ℹ pnpm is already up to date (9.5.0)\n",
-            expectedErr:    nil,
-        },
-    }
+	testCases := []struct {
+		name           string
+		specString     string
+		arguments      []string
+		expectedStderr string
+		expectedErr    error
+	}{
+		{
+			name:           "reports active package manager is up to date without hash",
+			specString:     "pnpm@9.5.0",
+			arguments:      []string{},
+			expectedStderr: "ℹ pnpm is already up to date (9.5.0)\n",
+			expectedErr:    nil,
+		},
+		{
+			name:           "reports active package manager is up to date with valid sha512 hash",
+			specString:     "pnpm@9.5.0+sha512." + strings.Repeat("c", 128),
+			arguments:      []string{},
+			expectedStderr: "ℹ pnpm is already up to date (9.5.0)\n",
+			expectedErr:    nil,
+		},
+		{
+			name:           "reports active package manager is up to date with corrupted hash",
+			specString:     "pnpm@9.5.0+corrupted_hash",
+			arguments:      []string{},
+			expectedStderr: "ℹ pnpm is already up to date (9.5.0)\n",
+			expectedErr:    nil,
+		},
+		{
+			name:           "reports Yarn Classic is up to date on 1.x line",
+			specString:     "yarn@1.22.22+sha1." + strings.Repeat("a", 40),
+			arguments:      []string{},
+			expectedStderr: "ℹ yarn is already up to date (1.22.22)\n",
+			expectedErr:    nil,
+		},
+		{
+			name:           "reports Yarn Berry is up to date",
+			specString:     "yarn@4.18.0",
+			arguments:      []string{},
+			expectedStderr: "ℹ yarn is already up to date (4.18.0)\n",
+			expectedErr:    nil,
+		},
+		{
+			name:           "reports update available when version is lower with valid hash",
+			specString:     "pnpm@9.1.0+sha256." + strings.Repeat("b", 64),
+			arguments:      []string{},
+			expectedStderr: "! Update available for pnpm: 9.1.0 -> 9.5.0\n",
+			expectedErr:    nil,
+		},
+		{
+			name:           "reports update available when version is lower with corrupted hash",
+			specString:     "pnpm@9.1.0+sha512.invalid",
+			arguments:      []string{},
+			expectedStderr: "! Update available for pnpm: 9.1.0 -> 9.5.0\n",
+			expectedErr:    nil,
+		},
+		{
+			name:           "reports Yarn Classic update available within 1.x",
+			specString:     "yarn@1.22.19",
+			arguments:      []string{},
+			expectedStderr: "! Update available for yarn: 1.22.19 -> 1.22.22\n",
+			expectedErr:    nil,
+		},
+		{
+			name:           "reports Yarn Berry update available",
+			specString:     "yarn@4.1.0",
+			arguments:      []string{},
+			expectedStderr: "! Update available for yarn: 4.1.0 -> 4.18.0\n",
+			expectedErr:    nil,
+		},
+		{
+			name:           "fails when update is available and fail-on-outdated flag is set",
+			specString:     "pnpm@9.1.0",
+			arguments:      []string{"--fail-on-outdated"},
+			expectedStderr: "! Update available for pnpm: 9.1.0 -> 9.5.0\n",
+			expectedErr:    cmd.ErrOutdatedPackage,
+		},
+		{
+			name:           "succeeds when up to date and fail-on-outdated flag is set",
+			specString:     "pnpm@9.5.0",
+			arguments:      []string{"--fail-on-outdated"},
+			expectedStderr: "ℹ pnpm is already up to date (9.5.0)\n",
+			expectedErr:    nil,
+		},
+	}
 
-    for _, testCase := range testCases {
-    	t.Run(testCase.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			temporalDirectory := t.TempDir()
 			manifestPath := filepath.Join(temporalDirectory, "package.json")
-			initialContent := []byte(`{"name": "test-pkg", "packageManager": "`+testCase.specString+`"}`)
+			initialContent := []byte(`{"name": "test-pkg", "packageManager": "` + testCase.specString + `"}`)
 			err := os.WriteFile(manifestPath, initialContent, 0600)
 			if err != nil {
 				t.Fatalf("failed to write test file: %v", err)
@@ -183,9 +183,9 @@ func TestNewOutdatedCommand(t *testing.T) {
 			mockServer := httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 				responseWriter.Header().Set("Content-Type", "application/json")
 				switch request.URL.Path {
-		        case "/pnpm":
-		            responseWriter.WriteHeader(http.StatusOK)
-		            responseWriter.Write([]byte(`{
+				case "/pnpm":
+					responseWriter.WriteHeader(http.StatusOK)
+					responseWriter.Write([]byte(`{
 		                "name": "pnpm",
 		                "dist-tags": {"latest": "9.5.0"},
 		                "versions": {
@@ -193,9 +193,9 @@ func TestNewOutdatedCommand(t *testing.T) {
 		                    "9.5.0": {"dist": {"integrity": "sha512-hF=="}}
 		                }
 		            }`))
-		        case "/yarn":
-		            responseWriter.WriteHeader(http.StatusOK)
-		            responseWriter.Write([]byte(`{
+				case "/yarn":
+					responseWriter.WriteHeader(http.StatusOK)
+					responseWriter.Write([]byte(`{
 		                "name": "yarn",
 		                "dist-tags": {"latest": "1.22.22"},
 		                "versions": {
@@ -204,9 +204,9 @@ func TestNewOutdatedCommand(t *testing.T) {
 		                    "2.0.0": {"dist": {"shasum": "020202"}}
 		                }
 		            }`))
-		        case "/@yarnpkg/cli-dist":
-		            responseWriter.WriteHeader(http.StatusOK)
-		            responseWriter.Write([]byte(`{
+				case "/@yarnpkg/cli-dist":
+					responseWriter.WriteHeader(http.StatusOK)
+					responseWriter.Write([]byte(`{
 		                "name": "@yarnpkg/cli-dist",
 		                "dist-tags": {"latest": "4.18.0"},
 		                "versions": {
@@ -214,9 +214,9 @@ func TestNewOutdatedCommand(t *testing.T) {
 		                    "4.18.0": {"dist": {"integrity": "sha512-hF=="}}
 		                }
 		            }`))
-		        default:
-		            responseWriter.WriteHeader(http.StatusNotFound)
-		        }
+				default:
+					responseWriter.WriteHeader(http.StatusNotFound)
+				}
 			}))
 			defer mockServer.Close()
 
@@ -254,9 +254,9 @@ func TestNewOutdatedCommand(t *testing.T) {
 			}
 
 			finalContent, _ := os.ReadFile(manifestPath)
-		    if !bytes.Equal(finalContent, initialContent) {
-		        t.Fatal("expected manifest to remain unmodified on disk")
-		    }
+			if !bytes.Equal(finalContent, initialContent) {
+				t.Fatal("expected manifest to remain unmodified on disk")
+			}
 		})
-    }
+	}
 }

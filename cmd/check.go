@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/pkcarreno/cpk/internal/manifest"
@@ -9,10 +8,6 @@ import (
 	"github.com/pkcarreno/cpk/internal/resolver"
 	"github.com/pkcarreno/cpk/internal/ui"
 	"github.com/spf13/cobra"
-)
-
-var (
-	ErrIntegrityMismatch = errors.New("the integrity hash does not match the registry metadata")
 )
 
 func NewCheckCommand() *cobra.Command {

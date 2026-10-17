@@ -12,16 +12,16 @@ import (
 )
 
 var (
-	ErrOutdatedPackage   = errors.New("the package manager is outdated")
+	ErrOutdatedPackage = errors.New("the package manager is outdated")
 )
 
 func NewOutdatedCommand() *cobra.Command {
 	outdatedCommand := &cobra.Command{
-		Use:   "outdated",
-		Short: "Check package manager updates against the registry",
-		SilenceUsage: true,
+		Use:           "outdated",
+		Short:         "Check package manager updates against the registry",
+		SilenceUsage:  true,
 		SilenceErrors: true,
-		RunE:  func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			packageSpec, err := manifest.ReadPackageSpecAgnostic("./package.json")
 			if err != nil {
 				return err
@@ -84,8 +84,7 @@ func NewOutdatedCommand() *cobra.Command {
 		},
 	}
 
-	
 	outdatedCommand.Flags().Bool("fail-on-outdated", false, "Exit with a non-zero code if the package manager is outdated")
-	
+
 	return outdatedCommand
 }
