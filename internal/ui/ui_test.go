@@ -383,7 +383,7 @@ func TestFormatError_DomainErrors(t *testing.T) {
 			err:             resolver.ErrVersionNotFound,
 			expectedSummary: "Version not found in registry",
 			expectedCause:   "The registry does not have a release matching the target version.",
-			expectedFix:     "Examine the package versions on npmjs.com or run \"cpk check\".",
+			expectedFix:     "Examine the package versions on npmjs.com.",
 		},
 		{
 			name:            "integrity mismatch",

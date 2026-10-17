@@ -154,7 +154,7 @@ func toActionableError(err error) (*ActionableError, bool) {
 		return &ActionableError{
 			Summary: "Version not found in registry",
 			Cause:   "The registry does not have a release matching the target version.",
-			Fix:     "Examine the package versions on npmjs.com or run \"cpk check\".",
+			Fix:     "Examine the package versions on npmjs.com.",
 			Err:     err,
 		}, true
 
