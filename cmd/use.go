@@ -13,9 +13,11 @@ import (
 
 func NewUseCommand() *cobra.Command {
 	useCommand := &cobra.Command{
-		Use:   "use <package-manager[@target]>",
-		Short: "Set the package manager and version",
-		Args:  cobra.ExactArgs(1),
+		Use:           "use <package-manager[@target]>",
+		Short:         "Set the package manager and version",
+		Args:          cobra.ExactArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if _, err := manifest.Read("./package.json"); err != nil {
 				return err

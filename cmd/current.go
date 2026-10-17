@@ -7,8 +7,10 @@ import (
 
 func NewCurrentCommand() *cobra.Command {
 	currentCommand := &cobra.Command{
-		Use:   "current",
-		Short: "Display the active package manager and version",
+		Use:           "current",
+		Short:         "Display the active package manager and version",
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			packageSpec, err := manifest.ReadPackageSpec("./package.json")
 			if err != nil {

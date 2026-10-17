@@ -17,9 +17,11 @@ var (
 
 func NewUpCommand() *cobra.Command {
 	upCommand := &cobra.Command{
-		Use:   "up [target]",
-		Short: "Update the package manager version",
-		Args:  cobra.MaximumNArgs(1),
+		Use:           "up [target]",
+		Short:         "Update the package manager version",
+		Args:          cobra.MaximumNArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			packageSpec, err := manifest.ReadPackageSpec("./package.json")
 			if err != nil {
