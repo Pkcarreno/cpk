@@ -186,11 +186,12 @@ func InsertPackageSpec(manifestBytes []byte, spec PackageSpec) ([]byte, error) {
 	if hasKeys {
 		buffer.WriteString(",")
 	}
+	lineEnding := detectLineEnding(manifestBytes)
 	if indent != "" {
-		buffer.WriteString("\n")
+		buffer.WriteString(lineEnding)
 		buffer.WriteString(indent)
 		buffer.WriteString(`"packageManager": "` + spec.String() + `"`)
-		buffer.WriteString("\n")
+		buffer.WriteString(lineEnding)
 	} else {
 		buffer.WriteString(`"packageManager":"` + spec.String() + `"`)
 	}
@@ -245,11 +246,11 @@ func WritePackageSpec(manifestPath string, targetSpec PackageSpec) (isModified b
 func detectIndentation(manifestBytes []byte) string {
 	lines := bytes.Split(manifestBytes, []byte("\n"))
 	for _, line := range lines {
-		trimmed := bytes.TrimLeft(line, " \t")
+		trimmed := bytes.Trim(line, " \t\r")
 		if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("{")) || bytes.Equal(trimmed, []byte("}")) {
 			continue
 		}
-		indent := line[:len(line)-len(trimmed)]
+		indent := line[:len(line)-len(bytes.TrimLeft(line, " \t"))]
 		if len(indent) > 0 {
 			if indent[0] == '\t' {
 				return "\t"
@@ -263,6 +264,15 @@ func detectIndentation(manifestBytes []byte) string {
 		}
 	}
 	return ""
+}
+
+func detectLineEnding(manifestBytes []byte) string {
+	crlfCount := bytes.Count(manifestBytes, []byte("\r\n"))
+	lfCount := bytes.Count(manifestBytes, []byte("\n")) - crlfCount
+	if crlfCount > lfCount {
+		return "\r\n"
+	}
+	return "\n"
 }
 
 var supportedAlgorithmLengths = map[string]int{

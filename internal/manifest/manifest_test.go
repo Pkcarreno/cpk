@@ -403,6 +403,46 @@ func TestInsertPackageSpec(t *testing.T) {
 			t.Fatalf("expected ErrPackageManagerExists, got %v", err)
 		}
 	})
+
+	t.Run("preserves CRLF line endings when input uses CRLF", func(t *testing.T) {
+		inputBytes := []byte("{\r\n  \"name\": \"sample-project\"\r\n}\r\n")
+		expectedBytes := []byte("{\r\n  \"name\": \"sample-project\",\r\n  \"packageManager\": \"pnpm@9.2.0+sha512.abcdef\"\r\n}\r\n")
+
+		targetSpec := manifest.PackageSpec{
+			Name:    "pnpm",
+			Version: "9.2.0",
+			Hash:    "+sha512.abcdef",
+		}
+
+		updatedBytes, err := manifest.InsertPackageSpec(inputBytes, targetSpec)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !bytes.Equal(updatedBytes, expectedBytes) {
+			t.Fatalf("output does not match expected CRLF formatting:\nexpected:\n%q\ngot:\n%q", string(expectedBytes), string(updatedBytes))
+		}
+	})
+
+	t.Run("preserves LF line endings when input uses LF", func(t *testing.T) {
+		inputBytes := []byte("{\n  \"name\": \"sample-project\"\n}\n")
+		expectedBytes := []byte("{\n  \"name\": \"sample-project\",\n  \"packageManager\": \"pnpm@9.2.0+sha512.abcdef\"\n}\n")
+
+		targetSpec := manifest.PackageSpec{
+			Name:    "pnpm",
+			Version: "9.2.0",
+			Hash:    "+sha512.abcdef",
+		}
+
+		updatedBytes, err := manifest.InsertPackageSpec(inputBytes, targetSpec)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !bytes.Equal(updatedBytes, expectedBytes) {
+			t.Fatalf("output does not match expected LF formatting:\nexpected:\n%q\ngot:\n%q", string(expectedBytes), string(updatedBytes))
+		}
+	})
 }
 
 func TestWritePackageSpec(t *testing.T) {
