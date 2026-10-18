@@ -1,11 +1,13 @@
 package cmd_test
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
 	"github.com/pkcarreno/cpk/cmd"
 	"github.com/pkcarreno/cpk/internal/ui"
+	"github.com/pkcarreno/cpk/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +53,7 @@ func TestNewRootCommand(t *testing.T) {
 			defValue  string
 		}{
 			{name: "quiet", shorthand: "q", defValue: "false"},
-			{name: "verbose", shorthand: "v", defValue: "false"},
+			{name: "verbose", shorthand: "", defValue: "false"},
 			{name: "no-color", shorthand: "", defValue: "false"},
 		}
 
@@ -72,7 +74,7 @@ func TestNewRootCommand(t *testing.T) {
 	t.Run("parses output control flags", func(t *testing.T) {
 		rootCommand := cmd.NewRootCommand()
 
-		if parseError := rootCommand.ParseFlags([]string{"-q", "-v", "--no-color"}); parseError != nil {
+		if parseError := rootCommand.ParseFlags([]string{"-q", "--verbose", "--no-color"}); parseError != nil {
 			t.Fatalf("unexpected flag parse error: %v", parseError)
 		}
 
@@ -108,6 +110,67 @@ func TestNewRootCommand(t *testing.T) {
 		uiInstance := ui.FromContext(recordedContext)
 		if uiInstance == nil {
 			t.Fatal("expected ui instance in context")
+		}
+	})
+
+	t.Run("prints version information to stdout", func(t *testing.T) {
+		rootCommand := cmd.NewRootCommand()
+		flag := rootCommand.Flags().Lookup("version")
+		if flag == nil {
+			t.Fatalf("the flag --version is not defined")
+		}
+		if flag.Shorthand != "v" {
+			t.Fatalf("expected shorthand 'v', got %q", flag.Shorthand)
+		}
+
+		for _, flagName := range []string{"--version", "-v"} {
+			rootCommand = cmd.NewRootCommand()
+
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+
+			rootCommand.SetArgs([]string{flagName})
+			rootCommand.SetOut(&stdout)
+			rootCommand.SetErr(&stderr)
+
+			if executionError := rootCommand.Execute(); executionError != nil {
+				t.Fatalf("unexpected execution error: %v", executionError)
+			}
+
+			if stderr.Len() != 0 {
+				t.Fatalf("expected empty stderr, got: %q", stderr.String())
+			}
+
+			expectedOutput := "cpk version dev\n"
+
+			if stdout.String() != expectedOutput {
+				t.Fatalf("expected output %q, got: %q", expectedOutput, stdout.String())
+			}
+		}
+	})
+
+	t.Run("executes version subcommand printing diagnostic metadata to stdout", func(t *testing.T) {
+		rootCommand := cmd.NewRootCommand()
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+
+		rootCommand.SetArgs([]string{"version"})
+		rootCommand.SetOut(&stdout)
+		rootCommand.SetErr(&stderr)
+
+		if executionError := rootCommand.Execute(); executionError != nil {
+			t.Fatalf("unexpected execution error: %v", executionError)
+		}
+
+		if stderr.Len() != 0 {
+			t.Fatalf("expected empty stderr, got: %q", stderr.String())
+		}
+
+		expectedOutput := version.Current().String()
+
+		if stdout.String() != expectedOutput {
+			t.Fatalf("expected output %q, got: %q", expectedOutput, stdout.String())
 		}
 	})
 }
