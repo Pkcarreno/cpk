@@ -15,6 +15,9 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
+      - -X github.com/pkcarreno/cpk/internal/version.version={{ .Version }}
+      - -X github.com/pkcarreno/cpk/internal/version.commit={{ .FullCommit }}
+      - -X github.com/pkcarreno/cpk/internal/version.date={{ .CommitDate }}
     mod_timestamp: '{{ .CommitTimestamp }}'
     targets:
       - aix_ppc64
