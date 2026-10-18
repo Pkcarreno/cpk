@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/pkcarreno/cpk/internal/ui"
+	"github.com/pkcarreno/cpk/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -41,8 +42,13 @@ func NewRootCommand() *cobra.Command {
 
 	rootCommand.PersistentFlags().String("registry", "", "URL of the npm registry")
 	rootCommand.PersistentFlags().BoolP("quiet", "q", false, "Do not write status messages to stderr")
-	rootCommand.PersistentFlags().BoolP("verbose", "v", false, "Write detailed execution steps to stderr")
+	rootCommand.PersistentFlags().Bool("verbose", false, "Write detailed execution steps to stderr")
 	rootCommand.PersistentFlags().Bool("no-color", false, "Do not use ANSI color codes")
+
+	buildMetadata := version.Current()
+	rootCommand.Version = buildMetadata.Version
+	rootCommand.SetVersionTemplate("cpk version {{.Version}}\n")
+	rootCommand.InitDefaultVersionFlag()
 
 	rootCommand.AddCommand(NewCurrentCommand())
 	rootCommand.AddCommand(NewUseCommand())
