@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkcarreno/cpk/cmd"
 	"github.com/pkcarreno/cpk/internal/ui"
+	"github.com/pkcarreno/cpk/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -145,6 +146,31 @@ func TestNewRootCommand(t *testing.T) {
 			if stdout.String() != expectedOutput {
 				t.Fatalf("expected output %q, got: %q", expectedOutput, stdout.String())
 			}
+		}
+	})
+
+	t.Run("executes version subcommand printing diagnostic metadata to stdout", func(t *testing.T) {
+		rootCommand := cmd.NewRootCommand()
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+
+		rootCommand.SetArgs([]string{"version"})
+		rootCommand.SetOut(&stdout)
+		rootCommand.SetErr(&stderr)
+
+		if executionError := rootCommand.Execute(); executionError != nil {
+			t.Fatalf("unexpected execution error: %v", executionError)
+		}
+
+		if stderr.Len() != 0 {
+			t.Fatalf("expected empty stderr, got: %q", stderr.String())
+		}
+
+		expectedOutput := version.Current().String()
+
+		if stdout.String() != expectedOutput {
+			t.Fatalf("expected output %q, got: %q", expectedOutput, stdout.String())
 		}
 	})
 }

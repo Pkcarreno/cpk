@@ -55,6 +55,7 @@ func NewRootCommand() *cobra.Command {
 	rootCommand.AddCommand(NewUpCommand())
 	rootCommand.AddCommand(NewOutdatedCommand())
 	rootCommand.AddCommand(NewVerifyCommand())
+	rootCommand.AddCommand(NewVersionCommand())
 
 	return rootCommand
 }
